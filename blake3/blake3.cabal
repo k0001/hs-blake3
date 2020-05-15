@@ -1,4 +1,4 @@
-cabal-version: 2.4
+cabal-version: 2.2
 name: blake3
 version: 0.1
 license: Apache-2.0
@@ -33,27 +33,33 @@ library
     BLAKE3
     BLAKE3.IO
     BLAKE3.Raw
-  cc-options: -O3 -DBLAKE3_NO_SSE41 -DBLAKE3_NO_AVX2 -DBLAKE3_NO_AVX512
+  cc-options: -O3
   include-dirs: cbits/
   c-sources:
     cbits/blake3.c
     cbits/blake3_dispatch.c
     cbits/blake3_portable.c
--- TODO ENABLE THESE
---   cbits/blake3_avx2.c
---   cbits/blake3_avx512.c
---   cbits/blake3_neon.c
---   cbits/blake3_sse41.c
--- asm-sources:
---   cbits/blake3_avx2_x86-64_unix.S
---   cbits/blake3_avx2_x86-64_windows_gnu.S
---   cbits/blake3_avx2_x86-64_windows_msvc.asm
---   cbits/blake3_avx512_x86-64_unix.S
---   cbits/blake3_avx512_x86-64_windows_gnu.S
---   cbits/blake3_avx512_x86-64_windows_msvc.asm
---   cbits/blake3_sse41_x86-64_unix.S
---   cbits/blake3_sse41_x86-64_windows_gnu.S
---   cbits/blake3_sse41_x86-64_windows_msvc.asm
+  if arch(x86_64) && (os(linux) || os(darwin)) {
+    c-sources:
+      cbits/blake3_avx2_x86-64_unix.S
+      cbits/blake3_avx512_x86-64_unix.S
+      cbits/blake3_sse41_x86-64_unix.S
+  } elif arch(x86_64) && os(windows) {
+    c-sources:
+      cbits/blake3_avx2_x86-64_windows_gnu.S
+      cbits/blake3_avx512_x86-64_windows_gnu.S
+      cbits/blake3_sse41_x86-64_windows_gnu.S
+      -- cbits/blake3_avx512_x86-64_windows_msvc.asm
+      -- cbits/blake3_avx2_x86-64_windows_msvc.asm
+      -- cbits/blake3_sse41_x86-64_windows_msvc.asm
+  } else {
+    cc-options: -DBLAKE3_NO_SSE41 -DBLAKE3_NO_AVX2 -DBLAKE3_NO_AVX512
+    -- TODO USE THESE
+    --   cbits/blake3_avx2.c
+    --   cbits/blake3_avx512.c
+    --   cbits/blake3_neon.c
+    --   cbits/blake3_sse41.c
+  }
 
 test-suite test
   import: basic
