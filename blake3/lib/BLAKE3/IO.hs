@@ -158,8 +158,9 @@ instance Show Context where
   show (Context x) = showBase16 (BA.takeView x (BA.length x - 1))
 
 -- | 'fromString' is a /partial/ function that fails if the given 'String'
--- contains 'Char's outside the range @['toEnum' 0 .. 'toEnum' 255]@. See
--- 'context'.
+-- contains 'Char's outside the range @['toEnum' 1 .. 'toEnum' 255]@. 
+--
+-- See 'context' for more details.
 instance IsString Context where
   fromString s = case traverse charToWord8 s of
       Nothing -> error "Not a valid String for Context"

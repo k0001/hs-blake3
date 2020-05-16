@@ -118,9 +118,9 @@ hasherKeyed key0 = unsafeDupablePerformIO $
 -- | Update 'BIO.Hasher' with new data.
 update
   :: forall bin
-  .  BA.ByteArrayAccess bin
+  .  BA.ByteArrayAccess bin 
   => BIO.Hasher
-  -> [bin]
+  -> [bin]  -- ^ New data to hash.
   -> BIO.Hasher
 update h0 bins = unsafeDupablePerformIO $ do
   h1 <- BIO.copyHasher h0
@@ -129,11 +129,11 @@ update h0 bins = unsafeDupablePerformIO $ do
     pure h1
 {-# NOINLINE update #-}
 
--- | Update 'BIO.Hasher' with new data.
+-- | Finish hashing and obtain a 'BIO.Digest' of the specified @len@gth. 
 finalize
   :: forall len
   .  KnownNat len
-  => BIO.Hasher
+  => BIO.Hasher -- ^
   -> BIO.Digest len
 finalize h0 = unsafeDupablePerformIO $ do
   h1 <- BIO.copyHasher h0
