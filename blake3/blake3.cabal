@@ -11,8 +11,8 @@ category: Cryptography
 build-type: Simple
 synopsis: BLAKE3 hashing algorithm
 description: Bindings to the official BLAKE3 implementation in C
-homepage: https://github.com/k0001/blake3
-bug-reports: https://github.com/k0001/blake3/issues
+homepage: https://github.com/k0001/hs-blake3
+bug-reports: https://github.com/k0001/hs-blake3/issues
 tested-with: GHC == 8.6.5, GHC == 8.8.3
 extra-source-files:
   cbits/*.h
