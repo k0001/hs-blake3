@@ -1,4 +1,4 @@
-# Version ???
+# Version 0.1.1
 
 * Enabled AVX-512, AVX2 and SSE-4.1 support.
 

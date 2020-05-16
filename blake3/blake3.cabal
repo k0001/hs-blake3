@@ -1,6 +1,6 @@
 cabal-version: 2.2
 name: blake3
-version: 0.1
+version: 0.1.1
 license: Apache-2.0
 license-file: LICENSE
 extra-source-files: README.md CHANGELOG.md
@@ -11,7 +11,7 @@ category: Cryptography
 build-type: Simple
 synopsis: BLAKE3 hashing algorithm
 description: Bindings to the official fast BLAKE3 implementations in assembly
-             and C. With support for AVX-512, AVX2 and SSE 4.1.
+             and C, with support for AVX-512, AVX2 and SSE 4.1.
 homepage: https://github.com/k0001/hs-blake3
 bug-reports: https://github.com/k0001/hs-blake3/issues
 tested-with: GHC == 8.6.5, GHC == 8.8.3
@@ -21,17 +21,17 @@ extra-source-files:
   cbits/LICENSE
 
 flag avx512
-  description: "Enable AVX-512 instructions"
+  description: Enable AVX-512 instructions
   default: True
   manual: True
 
 flag avx2
-  description: "Enable AVX2 instructions"
+  description: Enable AVX2 instructions
   default: True
   manual: True
 
 flag sse41
-  description: "Enable SSE 4.1 instructions"
+  description: Enable SSE 4.1 instructions
   default: True
   manual: True
 

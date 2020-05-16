@@ -1,7 +1,7 @@
 { mkDerivation, base, stdenv, nix-gitignore, memory, tasty, tasty-hunit }:
 mkDerivation {
   pname = "blake3";
-  version = "0.1";
+  version = "0.1.1";
   src = nix-gitignore.gitignoreSourcePure ../.gitignore ./.;
   libraryHaskellDepends = [ base memory ];
   testHaskellDepends = [ base memory tasty tasty-hunit ];
