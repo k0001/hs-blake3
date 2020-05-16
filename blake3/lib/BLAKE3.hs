@@ -5,10 +5,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
--- | Haskell bindings to the [official BLAKE3 hashing
--- implementation in C](https://github.com/BLAKE3-team/BLAKE3).
+-- | Haskell bindings to the fast [official BLAKE3 hashing
+-- implementation in assembly and C](https://github.com/BLAKE3-team/BLAKE3).
+-- With support for AVX-512, AVX2 and SSE 4.1.
 --
--- The original C implementation is released into the public domain with CC0 1.0.
+-- The original assembly and C implementation is released into the public domain with CC0 1.0.
 -- Alternatively, it is licensed under the Apache License 2.0, copyright of Jack
 -- O'Connor and Samuel Neves. See its [LICENSE](https://github.com/BLAKE3-team/BLAKE3/blob/88dcee7005be962a81516f7863e70009d9caa2c9/LICENSE)
 -- for details.
@@ -118,7 +119,7 @@ hasherKeyed key0 = unsafeDupablePerformIO $
 -- | Update 'BIO.Hasher' with new data.
 update
   :: forall bin
-  .  BA.ByteArrayAccess bin 
+  .  BA.ByteArrayAccess bin
   => BIO.Hasher
   -> [bin]  -- ^ New data to hash.
   -> BIO.Hasher
@@ -129,7 +130,7 @@ update h0 bins = unsafeDupablePerformIO $ do
     pure h1
 {-# NOINLINE update #-}
 
--- | Finish hashing and obtain a 'BIO.Digest' of the specified @len@gth. 
+-- | Finish hashing and obtain a 'BIO.Digest' of the specified @len@gth.
 finalize
   :: forall len
   .  KnownNat len
