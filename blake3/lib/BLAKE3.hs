@@ -21,6 +21,7 @@ module BLAKE3
   ( -- * Hashing
     hash
   , BIO.Digest
+  , BIO.digest
     -- * Keyed hashing
   , hashKeyed
   , BIO.Key
@@ -43,6 +44,8 @@ module BLAKE3
   where
 
 import qualified Data.ByteArray as BA
+import qualified Data.ByteArray.Sized as BAS
+import Data.Proxy
 import GHC.TypeLits
 import System.IO.Unsafe (unsafeDupablePerformIO)
 
@@ -61,12 +64,10 @@ hash
   :: forall len bin
   .  (KnownNat len, BA.ByteArrayAccess bin)
   => [bin]           -- ^ Data to hash.
-  -> BIO.Digest len  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
-hash bins = unsafeDupablePerformIO $ do
-  fmap fst $ BIO.allocRetHasher $ \ph -> do
-    BIO.init ph
-    BIO.update ph bins
-    BIO.finalize ph
+  -> BIO.Digest len
+  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
+  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+hash = unsafeDupablePerformIO . BIO.hash
 {-# NOINLINE hash #-}
 
 -- | BLAKE3 hashing with a 'BIO.Key'.
@@ -84,12 +85,15 @@ hashKeyed
   .  (KnownNat len, BA.ByteArrayAccess bin)
   => BIO.Key
   -> [bin]           -- ^ Data to hash.
-  -> BIO.Digest len  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
+  -> BIO.Digest len
+  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
+  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
 hashKeyed key0 bins = unsafeDupablePerformIO $ do
-  fmap fst $ BIO.allocRetHasher $ \ph -> do
+  (dig, _ :: BIO.Hasher) <- BAS.allocRet Proxy $ \ph -> do
     BIO.initKeyed ph key0
     BIO.update ph bins
     BIO.finalize ph
+  pure dig
 {-# NOINLINE hashKeyed #-}
 
 -- | BLAKE3 key derivation.
@@ -100,26 +104,26 @@ derive
   .  (KnownNat len, BA.ByteArrayAccess ikm)
   => BIO.Context
   -> [ikm]  -- ^ Input key material.
-  -> BIO.Digest len  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
-derive ctx ikms = unsafeDupablePerformIO $
-  fmap fst $ BIO.allocRetHasher $ \ph -> do
+  -> BIO.Digest len
+  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
+  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+derive ctx ikms = unsafeDupablePerformIO $ do
+  (dig, _ :: BIO.Hasher) <- BAS.allocRet Proxy $ \ph -> do
     BIO.initDerive ph ctx
     BIO.update ph ikms
     BIO.finalize ph
+  pure dig
 {-# NOINLINE derive #-}
 
 -- | Initial 'BIO.Hasher' for incremental hashing.
 hasher :: BIO.Hasher -- ^
-hasher = unsafeDupablePerformIO $
-  fmap snd $ BIO.allocRetHasher BIO.init
-{-# NOINLINE hasher #-}
+hasher = BAS.allocAndFreeze BIO.init
 
 -- | Initial 'BIO.Hasher' for incremental /keyed/ hashing.
 hasherKeyed :: BIO.Key -> BIO.Hasher -- ^
-hasherKeyed key0 = unsafeDupablePerformIO $
-  fmap snd $ BIO.allocRetHasher $ \ph ->
+hasherKeyed key0 =
+  BAS.allocAndFreeze $ \ph ->
   BIO.initKeyed ph key0
-{-# NOINLINE hasherKeyed #-}
 
 -- | Update 'BIO.Hasher' with new data.
 update
@@ -128,21 +132,22 @@ update
   => BIO.Hasher
   -> [bin]  -- ^ New data to hash.
   -> BIO.Hasher
-update h0 bins = unsafeDupablePerformIO $ do
-  h1 <- BIO.copyHasher h0
-  BIO.modifyHasher h1 $ \ph1 -> do
-    BIO.update ph1 bins
-    pure h1
-{-# NOINLINE update #-}
+update h0 bins =
+  BAS.copyAndFreeze h0 $ \ph1 ->
+  BIO.update ph1 bins
 
 -- | Finish hashing and obtain a 'BIO.Digest' of the specified @len@gth.
 finalize
   :: forall len
   .  KnownNat len
-  => BIO.Hasher -- ^
+  => BIO.Hasher
   -> BIO.Digest len
+  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
+  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
 finalize h0 = unsafeDupablePerformIO $ do
-  h1 <- BIO.copyHasher h0
-  BIO.modifyHasher h1 $ \ph1 ->
-    BIO.finalize ph1
+  (dig, _ :: BIO.Hasher) <- BAS.copyRet h0 BIO.finalize
+  pure dig
 {-# NOINLINE finalize #-}
+
+--------------------------------------------------------------------------------
+

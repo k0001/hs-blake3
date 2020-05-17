@@ -1,14 +1,20 @@
 # Version 0.2
 
 * COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: Drop the `BLAKE3.Raw` module
-  in favor of `BLAKE.IO`. Re-export internals from there. Drop `HasherInternal`
-  and related functions in favor of `Ptr Hasher`.
+  in favor of `BLAKE.IO`. Re-export internals from there.
 
-* Added `Storable` and `ByteArrayAccess` instance for `Hasher`.
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: Drop `HasherInternal` and
+  related functions in favor of `Ptr Hasher`.
+
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: Drop `allocRetHasher`,
+  `allocRetKey`, `allocRetDigest`.
+
+* Added `Storable`, `ByteArrayAccess` and `ByteArrayN` instances for `Hasher`,
+  `Key` and `Digest`.
 
 * Added `ByteArrayAccess` instance for `Context`.
 
-* Added `modifyHasher`.
+* Added `modifyHasher`, `digest`.
 
 * More tests.
 

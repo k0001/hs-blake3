@@ -1,23 +1,26 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
 -- | IO and low level tools.
 module BLAKE3.IO
   ( -- * Hashing
-    init
+    hash
+  , init
   , update
   , finalize
     -- * Digest
   , Digest
-  , allocRetDigest
+  , digest
     -- * Keyed hashing
   , Key
   , key
-  , allocRetKey
   , initKeyed
     -- * Key derivation
   , Context
@@ -26,8 +29,6 @@ module BLAKE3.IO
     -- * Hasher
   , Hasher
   , modifyHasher
-  , allocRetHasher
-  , copyHasher
     -- * Constants
   , HASHER_ALIGNMENT
   , HASHER_SIZE
@@ -60,6 +61,7 @@ import Foreign.Storable
 import GHC.TypeLits
 import Prelude hiding (init)
 import qualified Data.ByteArray as BA
+import qualified Data.ByteArray.Sized as BAS
 import qualified Data.ByteArray.Encoding as BA
 import qualified Data.Memory.PtrMethods as BA
 
@@ -68,26 +70,54 @@ import qualified Data.Memory.PtrMethods as BA
 -- | Output from BLAKE3 algorithm, of @len@ bytes.
 --
 -- The default digest length for BLAKE3 is 'DEFAULT_DIGEST_LEN'.
-newtype Digest (len :: Nat) = Digest BA.ScrubbedBytes
-  deriving newtype ( Eq -- ^ Constant time.
-                   , BA.ByteArrayAccess)
+data Digest (len :: Nat) where
+  -- | We store things this way to avoid unnecessary conversions between
+  -- different 'BA.ByteArrayAccess' when using 'digest' for reading a 'Digest'
+  -- from a third party source.
+  --
+  -- Digest produced by this library are always allocated with 'BAS.allocRet'.
+  Digest :: BA.ByteArrayAccess x => x -> Digest len
+
+-- | Obtain a digest containing bytes from a third-party source.
+--
+-- This is useful if you want to use the 'Digest' datatype in your programs, but
+-- you are loading the pre-calculated digests from a database or similar.
+digest
+  :: forall len bin
+  .  (KnownNat len, BA.ByteArrayAccess bin)
+  => bin  -- ^ Raw digest bytes. Must have length @len@.
+  -> Maybe (Digest len)  -- ^
+digest bin
+  | BA.length bin /= fromIntegral (natVal (Proxy @len)) = Nothing
+  | otherwise = Just (Digest bin)
+
+-- | Constant time.
+instance Eq (Digest len) where
+  Digest a == Digest b = BA.constEq a b
 
 -- | Base 16 (hexadecimal).
 instance Show (Digest len) where
   show (Digest x) = showBase16 x
 
+instance BA.ByteArrayAccess (Digest len) where
+  length (Digest x) = BA.length x
+  withByteArray (Digest x) = BA.withByteArray x
+
 -- | Allocate a 'Digest'.
---
 -- The memory is wiped and freed as soon the 'Digest' becomes unused.
-allocRetDigest
-  :: forall len a
-  .  KnownNat len
-  => (Ptr Word8 -> IO a)  -- ^ Initialize @len@ bytes.
-  -> IO (a, Digest len)
-allocRetDigest g = do
-  let size = fromIntegral (natVal (Proxy @len))
-  (a, bs) <- BA.allocRet size g
-  pure (a, Digest bs)
+instance KnownNat len => BAS.ByteArrayN len (Digest len) where
+  allocRet prx g = do
+    let size = fromIntegral (natVal prx)
+    (a, bs :: BA.ScrubbedBytes) <- BA.allocRet size g
+    pure (a, Digest bs)
+
+-- | When allocating a 'Digest', prefer to use 'BAS.alloc', which
+-- wipes and releases the memory as soon it becomes unused.
+instance forall len. KnownNat len => Storable (Digest len) where
+  sizeOf _ = fromIntegral (natVal (Proxy @len))
+  alignment _ = 8 -- Not sure.
+  peek ps = BAS.alloc $ \pd -> copyArray pd ps 1
+  poke pd src = BA.withByteArray src $ \ps -> copyArray pd ps 1
 
 --------------------------------------------------------------------------------
 
@@ -96,13 +126,38 @@ allocRetDigest g = do
 -- Obtain with 'BLAKE3.key'.
 --
 -- See 'BLAKE3.hashKeyed'.
-newtype Key = Key BA.ScrubbedBytes
-  deriving newtype ( Eq -- ^ Constant time.
-                   , BA.ByteArrayAccess)
+data Key where
+  -- | We store things this way to avoid unnecessary conversions between
+  -- different 'BA.ByteArrayAccess' when using 'key' for reading a 'Key'
+  -- from a third party source.
+  Key :: BA.ByteArrayAccess x => x -> Key
+
+-- | Constant time.
+instance Eq Key where
+  Key a == Key b = BA.constEq a b
 
 -- | Base 16 (hexadecimal).
 instance Show Key where
   show (Key x) = showBase16 x
+
+instance BA.ByteArrayAccess Key where
+  length (Key x) = BA.length x
+  withByteArray (Key x) = BA.withByteArray x
+
+-- | Allocate a 'Key'.
+-- The memory is wiped and freed as soon as the 'Key' becomes unused.
+instance BAS.ByteArrayN KEY_LEN Key where
+  allocRet _ g = do
+    (a, bs :: BA.ScrubbedBytes) <- BA.allocRet keyLen g
+    pure (a, Key bs)
+
+-- | When allocating a 'Key', prefer to use 'BAS.alloc', which
+-- wipes and releases the memory as soon it becomes unused.
+instance Storable Key where
+  sizeOf _ = keyLen
+  alignment _ = 8 -- Not sure.
+  peek ps = BAS.alloc $ \pd -> copyArray pd ps 1
+  poke pd src = BA.withByteArray src $ \ps -> copyArray pd ps 1
 
 keyLen :: Int
 keyLen = fromIntegral (natVal (Proxy @KEY_LEN))
@@ -114,24 +169,18 @@ key
   :: BA.ByteArrayAccess bin
   => bin -- ^ Key bytes. Must have length 'KEY_LEN'.
   -> Maybe Key -- ^
-key bin | BA.length bin == keyLen = Just (Key (BA.convert bin))
-        | otherwise = Nothing
-
--- | Allocate a 'Key'.
---
--- The memory is wiped and freed as soon as the 'Digest' becomes unused.
-allocRetKey
-  :: forall a
-  .  (Ptr Word8 -> IO a) -- ^ Initialize 'KEY_LEN' bytes.
-  -> IO (a, Key)
-allocRetKey g = do
-  (a, bs) <- BA.allocRet keyLen g
-  pure (a, Key bs)
+key bin | BA.length bin /= keyLen = Nothing
+        | otherwise = Just (Key bin)
 
 --------------------------------------------------------------------------------
 
 -- | Context for BLAKE3 key derivation. Obtain with 'context'.
-newtype Context = Context BA.Bytes -- ^ NUL-terminated 'CString'.
+newtype Context
+  = Context BA.Bytes
+  -- ^ NUL-terminated 'CString'. We store things this way so as to avoid
+  -- re-creating the 'CString' each time we need to use this 'Context' in
+  -- 'c_init_derive_key'. We never expose the NUL-terminating byte to users
+  -- of this library.
   deriving newtype (Eq)
 
 -- We exclude the NUL-terminating byte. That's internal.
@@ -197,12 +246,33 @@ showBase16 = fmap (toEnum . fromIntegral)
 
 --------------------------------------------------------------------------------
 
+-- | BLAKE3 hashing.
+hash
+  :: forall len bin
+  .  (KnownNat len, BA.ByteArrayAccess bin)
+  => [bin]
+  -- ^ Data to hash.
+  -> IO (Digest len)
+  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
+  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+hash bins = do
+  (dig, _ :: Hasher) <- BAS.allocRet Proxy $ \ph -> do
+    init ph
+    update ph bins
+    finalize ph
+  pure dig
+
 -- | Initialize a 'Hasher'.
-init :: Ptr Hasher -> IO () -- ^
+init
+  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar.
+  -> IO ()
 init = c_init
 
 -- | Initialize a 'Hasher' in keyed mode.
-initKeyed :: Ptr Hasher -> Key -> IO () -- ^
+initKeyed
+  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar.
+  -> Key
+  -> IO ()
 initKeyed ph key0 =
   BA.withByteArray key0 $ \pkey ->
   c_init_keyed ph pkey
@@ -210,22 +280,36 @@ initKeyed ph key0 =
 -- | Initialize a 'Hasher' in derivation mode.
 --
 -- The input key material must be provided afterwards, using 'update'.
-initDerive :: Ptr Hasher -> Context -> IO () -- ^
+initDerive
+  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar.
+  -> Context
+  -> IO ()
 initDerive ph (Context ctx) =
   BA.withByteArray ctx $ \pc ->
   c_init_derive_key ph pc
 
 -- | Update 'Hasher' state with new data.
-update :: forall bin. BA.ByteArrayAccess bin => Ptr Hasher -> [bin] -> IO () -- ^
+update
+  :: forall bin
+  .  BA.ByteArrayAccess bin
+  => Ptr Hasher -- ^ Obtain with 'modifyHasher'.
+  -> [bin]
+  -> IO ()
 update ph bins =
   for_ bins $ \bin ->
   BA.withByteArray bin $ \pbin ->
   c_update ph pbin (fromIntegral (BA.length bin))
 
 -- | Finalize 'Hasher' state and obtain a digest.
-finalize :: forall len. KnownNat len => Ptr Hasher -> IO (Digest len) -- ^
+finalize
+  :: forall len
+  .  KnownNat len
+  => Ptr Hasher -- ^ Obtain with 'modifyHasher'.
+  -> IO (Digest len)
+  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
+  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
 finalize ph =
-  fmap snd $ allocRetDigest $ \pd ->
+  BAS.alloc $ \pd ->
   c_finalize ph pd (fromIntegral (natVal (Proxy @len)))
 
 --------------------------------------------------------------------------------
@@ -249,48 +333,74 @@ type MAX_SIMD_DEGREE = 16
 -- | BLAKE3 internal state.
 --
 -- Obtain with 'BLAKE3.hasher', 'BLAKE3.hasherKeyed', 'allocRetHasher'.
-newtype Hasher = Hasher BA.ScrubbedBytes
-  deriving newtype (BA.ByteArrayAccess)
+newtype Hasher = Hasher (BAS.SizedByteArray HASHER_SIZE BA.ScrubbedBytes)
+  deriving newtype
+    ( BA.ByteArrayAccess
+    , BAS.ByteArrayN HASHER_SIZE
+      -- ^ Allocate a 'Hasher'.
+      -- The memory is wiped and freed as soon as the 'Hasher' becomes unused.
+    )
 
--- | Modify a 'Hasher'.
-modifyHasher :: Hasher -> (Ptr Hasher -> IO a) -> IO a -- ^
+-- | Obtain a @'Ptr' 'Hasher'@ to use with functions like 'initDerive', etc.
+modifyHasher
+  :: Hasher
+  -> (Ptr Hasher -> IO a) -- ^ 'HASHER_SIZE' bytes.
+  -> IO a
 modifyHasher = BA.withByteArray
 
-hasherSize :: Int
-hasherSize = fromIntegral (natVal (Proxy @HASHER_SIZE))
-
--- | Allocate a 'Hasher'.
---
--- The memory is wiped and freed as soon as the 'Hasher' becomes unused.
-allocRetHasher
-  :: (Ptr Hasher -> IO a) -- ^ Initialize 'HASHER_SIZE' bytes.
-  -> IO (a, Hasher) -- ^
-allocRetHasher g = do
-  (a, sb) <- BA.allocRet hasherSize g
-  pure (a, Hasher sb)
-
--- | Copy an inmutable 'Hasher'.
-copyHasher :: Hasher -> IO Hasher -- ^
-copyHasher h0 =
-  fmap snd $ allocRetHasher $ \pdst ->
-  poke pdst h0
-
--- | When allocating a 'Hasher', prefer to use  'allocRetHasher', which
+-- | When allocating a 'Hasher', prefer to use 'BAS.alloc', which
 -- wipes and releases the memory as soon it becomes unused.
 instance Storable Hasher where
-  sizeOf _ = hasherSize
+  sizeOf _ = fromIntegral (natVal (Proxy @HASHER_SIZE))
   alignment _ = fromIntegral (natVal (Proxy @HASHER_ALIGNMENT))
-  peek ps = fmap Hasher $ BA.alloc hasherSize $ \pd -> copyArray pd ps 1
-  poke pd (Hasher src) = BA.withByteArray src $ \ps -> copyArray pd ps 1
+  peek ps = BAS.alloc $ \pd -> copyArray pd ps 1
+  poke pd src = BA.withByteArray src $ \ps -> copyArray pd ps 1
 
+--------------------------------------------------------------------------------
+{-
+newtype SHO = SHO Hasher
+  deriving (BA.ByteArrayAccess)
+
+sho :: Context -> IO SHO -- ^
+sho ctx = do
+  dctx :: Digest BIO.KEY_LEN <- hash [ctx]
+
+
+  hahs
+
+  let Just key0 = BIO.key (hash [ctx] :: BIO.Digest BIO.KEY_LEN)
+  in SHO $! hasherKeyed key0
+
+absorb :: BA.ByteArrayAccess bin => SHO -> [bin] -> SHO -- ^
+absorb (SHO h) = SHO . update h
+
+ratchet :: SHO -> SHO -- ^
+ratchet (SHO h0) =
+  let Just key0 = BIO.key (finalize h0 :: BIO.Digest BIO.KEY_LEN)
+  in SHO $! hasherKeyed key0
+
+squeeze
+  :: forall len
+  .  KnownNat len
+  => SHO
+  -> BIO.Digest len -- ^
+squeeze (SHO h0) = unsafeDupablePerformIO $ do
+  let digestLen = fromIntegral (natVal (Proxy @len))
+  h1 <- BIO.copyHasher h0
+  BIO.modifyHasher h1 $ \ph1 ->
+    fmap snd $ BIO.BAS.allocRet $ \pd ->
+    BIO.c_finalize_seek ph1 64 pd digestLen
+{-# NOINLINE squeeze #-}
+
+-}
 --------------------------------------------------------------------------------
 
 -- | @void blake3_hasher_init(blake3_hasher *self)@
 foreign import ccall unsafe
   "blake3.h blake3_hasher_init"
   c_init
-    :: Ptr Hasher  -- ^ You can obtain with 'allocRetDigest'. Otherwise,
-                   -- any chunk of 'HASHER_SIZE' bytes aligned to
+    :: Ptr Hasher  -- ^ You can obtain with 'BAS.alloc'.
+                   -- Otherwise, any chunk of 'HASHER_SIZE' bytes aligned to
                    -- 'HASHER_ALIGNMENT' will do.
     -> IO ()
 
@@ -298,18 +408,19 @@ foreign import ccall unsafe
 foreign import ccall unsafe
   "blake3.h blake3_hasher_init_keyed"
   c_init_keyed
-    :: Ptr Hasher  -- ^ You can obtain with 'allocRetDigest'. Otherwise,
-                   -- any chunk of 'HASHER_SIZE' bytes aligned to
+    :: Ptr Hasher  -- ^ You can obtain with 'BAS.alloc'.
+                   -- Otherwise, any chunk of 'HASHER_SIZE' bytes aligned to
                    -- 'HASHER_ALIGNMENT' will do.
-    -> Ptr Word8   -- ^ Key of length 'KEY_LEN'.
+    -> Ptr Word8   -- ^ You can obtain with 'BAS.alloc'.
+                   -- Otherwise, any chunk of length 'KEY_LEN' will do.
     -> IO ()
 
 -- | @void blake3_hasher_init_derive_key(blake3_hasher *self, const char *context)@
 foreign import ccall unsafe
   "blake3.h blake3_hasher_init_derive_key"
   c_init_derive_key
-    :: Ptr Hasher  -- ^ You can obtain with 'allocRetDigest'. Otherwise,
-                   -- any chunk of 'HASHER_SIZE' bytes aligned to
+    :: Ptr Hasher  -- ^ You can obtain with 'BAS.alloc'.
+                   -- Otherwise, any chunk of 'HASHER_SIZE' bytes aligned to
                    -- 'HASHER_ALIGNMENT' will do.
     -> CString  -- ^ Context.
     -> IO ()
@@ -318,7 +429,7 @@ foreign import ccall unsafe
 foreign import ccall unsafe
   "blake3.h blake3_hasher_update"
   c_update
-    :: Ptr Hasher -- ^ Must have been previously initialized. See 'c_init',
+    :: Ptr Hasher -- ^ Must have been previously initializedi. See 'c_init',
                   -- 'c_init_keyed', 'c_init_derive_key'.
     -> Ptr Word8  -- ^ Data.
     -> CSize      -- ^ Data length.
@@ -328,7 +439,7 @@ foreign import ccall unsafe
 foreign import ccall unsafe
   "blake3.h blake3_hasher_finalize"
   c_finalize
-    :: Ptr Hasher -- ^ Must have been previously initialized. See 'c_init',
+    :: Ptr Hasher -- ^ Must have been previously initializedi. See 'c_init',
                   -- 'c_init_keyed', 'c_init_derive_key'.
     -> Ptr Word8  -- ^ Out.
     -> CSize      -- ^ Out length.
@@ -338,7 +449,7 @@ foreign import ccall unsafe
 foreign import ccall unsafe
   "blake3.h blake3_hasher_finalize_seek"
   c_finalize_seek
-    :: Ptr Hasher  -- ^ Must have been previously initialized. See 'c_init',
+    :: Ptr Hasher  -- ^ Must have been previously initializedi. See 'c_init',
                    -- 'c_init_keyed', 'c_init_derive_key'.
     -> Word64      -- ^ Seek position.
     -> Ptr Word8   -- ^ Out.
