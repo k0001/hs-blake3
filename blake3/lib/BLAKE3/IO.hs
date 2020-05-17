@@ -368,6 +368,12 @@ newtype Hasher = Hasher (BAS.SizedByteArray HASHER_SIZE BA.ScrubbedBytes)
       -- The memory is wiped and freed as soon as the 'Hasher' becomes unused.
     )
 
+instance Eq Hasher where
+  (==) = BA.eq
+
+instance Show Hasher where
+  show = showBase16
+
 -- | Obtain a @'Ptr' 'Hasher'@ to use with functions like 'initDerive', etc.
 modifyHasher
   :: Hasher

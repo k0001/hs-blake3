@@ -5,9 +5,11 @@
 module Main (main) where
 
 import qualified Data.ByteArray as BA
+import qualified Data.ByteArray.Sized as BAS
 import qualified Data.List as List
 import Data.Proxy
 import Data.Word
+import Foreign.Storable
 import GHC.TypeLits
 import qualified Test.Tasty as Tasty
 import qualified Test.Tasty.Runners as Tasty
@@ -30,6 +32,7 @@ tt_BLAKE3 = testGroup "BLAKE3"
   , tt_context
   , tt_key
   , tt_hasher
+  , tt_digest
   ]
 
 
@@ -117,8 +120,24 @@ tt_hasher = testGroup "Hasher"
       let dig0 :: B.Digest 2050 = B.finalize B.hasher
       let dig1 :: B.Digest 50 = B.finalizeSeek B.hasher 2000
       BA.drop 2000 (BA.convert dig0) @=? (BA.convert dig1 :: BA.Bytes)
+
+  , testCase "Storable" $ do
+      let h1 = B.hasher
+      h2 <- BAS.alloc $ \ph2 -> poke ph2 h1
+      h1 @=? h2
+      h3 <- BA.withByteArray h1 peek
+      h1 @=? h3
   ]
 
+tt_digest :: TestTree
+tt_digest = testGroup "Digest"
+  [ testCase "Storable" $ do
+      let d1 :: B.Digest 400 = B.hash ([] :: [BA.Bytes])
+      d2 <- BAS.alloc $ \pd2 -> poke pd2 d1
+      d1 @=? d2
+      d3 <- BA.withByteArray d1 peek
+      d1 @=? d3
+  ]
 
 testVector_context :: B.Context
 testVector_context = "BLAKE3 2019-12-27 16:29:52 test vectors context"
@@ -161,6 +180,12 @@ tt_key = testGroup "Key"
         @=? show testVector_key
   , testCase "long" $ do
       Nothing @=? B.key (BA.replicate 100 0 :: BA.Bytes)
+  , testCase "Storable" $ do
+      let k1 = testVector_key
+      k2 <- BAS.alloc $ \pk2 -> poke pk2 k1
+      k1 @=? k2
+      k3 <- BA.withByteArray k1 peek
+      k1 @=? k3
   ]
 
 data TestVector = TestVector
