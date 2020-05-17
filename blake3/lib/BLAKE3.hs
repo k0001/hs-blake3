@@ -36,6 +36,7 @@ module BLAKE3
   , hasherKeyed
   , update
   , finalize
+  , finalizeSeek
     -- * Constants
   , BIO.KEY_LEN
   , BIO.BLOCK_SIZE
@@ -46,6 +47,7 @@ module BLAKE3
 import qualified Data.ByteArray as BA
 import qualified Data.ByteArray.Sized as BAS
 import Data.Proxy
+import Data.Word
 import GHC.TypeLits
 import System.IO.Unsafe (unsafeDupablePerformIO)
 
@@ -148,6 +150,25 @@ finalize h0 = unsafeDupablePerformIO $ do
   (dig, _ :: BIO.Hasher) <- BAS.copyRet h0 BIO.finalize
   pure dig
 {-# NOINLINE finalize #-}
+
+-- | Finalize incremental hashing and obtain a 'Digest' of length @len@ /after/
+-- the specified number of bytes of BLAKE3 output.
+--
+-- @
+-- 'finalize' h = 'finalizeSeek' h 0
+-- @
+finalizeSeek
+  :: forall len
+  .  KnownNat len
+  => BIO.Hasher
+  -> Word64     -- ^ Number of bytes to skip before obtaning the digest output.
+  -> BIO.Digest len
+  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
+  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+finalizeSeek h0 pos = unsafeDupablePerformIO $ do
+  (dig, _ :: BIO.Hasher) <- BAS.copyRet h0 $ \ph -> BIO.finalizeSeek ph pos
+  pure dig
+{-# NOINLINE finalizeSeek #-}
 
 --------------------------------------------------------------------------------
 

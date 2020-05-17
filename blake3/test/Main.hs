@@ -107,6 +107,16 @@ tt_hasher = testGroup "Hasher"
       "92b2b75604ed3c761f9d" @=? show (B.finalize @10 h1)
       "f46255baa87a3280d644" @=? show (B.finalize @10 h2)
       "b5ee60b5d89ac7e1289b" @=? show (B.finalize @10 h3)
+
+  , testCase "finalize vs finalizeSeek: zero" $ do
+      let dig0 :: B.Digest 50 = B.finalize B.hasher
+      let dig1 :: B.Digest 50 = B.finalizeSeek B.hasher 0
+      dig0 @=? dig1
+
+  , testCase "finalize vs finalizeSeek: non-zero" $ do
+      let dig0 :: B.Digest 2050 = B.finalize B.hasher
+      let dig1 :: B.Digest 50 = B.finalizeSeek B.hasher 2000
+      BA.drop 2000 (BA.convert dig0) @=? (BA.convert dig1 :: BA.Bytes)
   ]
 
 

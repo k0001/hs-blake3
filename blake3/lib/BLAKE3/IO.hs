@@ -15,6 +15,7 @@ module BLAKE3.IO
   , init
   , update
   , finalize
+  , finalizeSeek
     -- * Digest
   , Digest
   , digest
@@ -159,9 +160,6 @@ instance Storable Key where
   peek ps = BAS.alloc $ \pd -> copyArray pd ps 1
   poke pd src = BA.withByteArray src $ \ps -> copyArray pd ps 1
 
-keyLen :: Int
-keyLen = fromIntegral (natVal (Proxy @KEY_LEN))
-
 -- | Obtain a 'Key' for use in BLAKE3 keyed hashing.
 --
 -- See 'BLAKE3.hashKeyed'.
@@ -264,13 +262,13 @@ hash bins = do
 
 -- | Initialize a 'Hasher'.
 init
-  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar.
+  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar. It will be mutated.
   -> IO ()
 init = c_init
 
 -- | Initialize a 'Hasher' in keyed mode.
 initKeyed
-  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar.
+  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar. It will be mutated.
   -> Key
   -> IO ()
 initKeyed ph key0 =
@@ -281,7 +279,7 @@ initKeyed ph key0 =
 --
 -- The input key material must be provided afterwards, using 'update'.
 initDerive
-  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar.
+  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar. It will be mutated.
   -> Context
   -> IO ()
 initDerive ph (Context ctx) =
@@ -292,7 +290,7 @@ initDerive ph (Context ctx) =
 update
   :: forall bin
   .  BA.ByteArrayAccess bin
-  => Ptr Hasher -- ^ Obtain with 'modifyHasher'.
+  => Ptr Hasher -- ^ Obtain with 'modifyHasher'. It will be mutated.
   -> [bin]
   -> IO ()
 update ph bins =
@@ -300,11 +298,11 @@ update ph bins =
   BA.withByteArray bin $ \pbin ->
   c_update ph pbin (fromIntegral (BA.length bin))
 
--- | Finalize 'Hasher' state and obtain a digest.
+-- | Finalize incremental hashin and obtain a 'Digest'.
 finalize
   :: forall len
   .  KnownNat len
-  => Ptr Hasher -- ^ Obtain with 'modifyHasher'.
+  => Ptr Hasher -- ^ Obtain with 'modifyHasher'. It will be mutated.
   -> IO (Digest len)
   -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
   -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
@@ -312,15 +310,43 @@ finalize ph =
   BAS.alloc $ \pd ->
   c_finalize ph pd (fromIntegral (natVal (Proxy @len)))
 
+-- | Finalize incremental hashing and obtain a 'Digest' of length @len@ /after/
+-- the specified number of bytes of BLAKE3 output.
+--
+-- @
+-- 'finalize' h = 'finalizeSeek' h 0
+-- @
+finalizeSeek
+  :: forall len
+  .  KnownNat len
+  => Ptr Hasher -- ^ Obtain with 'modifyHasher'. It will be mutated.
+  -> Word64     -- ^ Number of bytes to skip before obtaning the digest output.
+  -> IO (Digest len)
+  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
+  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+finalizeSeek ph pos =
+  BAS.alloc $ \pd ->
+  c_finalize_seek ph pos pd (fromIntegral (natVal (Proxy @len)))
+
 --------------------------------------------------------------------------------
 
 type HASHER_ALIGNMENT = 8
+
 -- | In bytes.
 type HASHER_SIZE = 1912
+
+hasherSize :: Int
+hasherSize = fromIntegral (natVal (Proxy @HASHER_SIZE))
+
 -- | In bytes.
 type KEY_LEN = 32
+
+keyLen :: Int
+keyLen = fromIntegral (natVal (Proxy @KEY_LEN))
+
 -- | In bytes.
 type DEFAULT_DIGEST_LEN = 32
+
 -- | In bytes.
 type BLOCK_SIZE = 64
 
@@ -351,48 +377,11 @@ modifyHasher = BA.withByteArray
 -- | When allocating a 'Hasher', prefer to use 'BAS.alloc', which
 -- wipes and releases the memory as soon it becomes unused.
 instance Storable Hasher where
-  sizeOf _ = fromIntegral (natVal (Proxy @HASHER_SIZE))
+  sizeOf _ = hasherSize
   alignment _ = fromIntegral (natVal (Proxy @HASHER_ALIGNMENT))
   peek ps = BAS.alloc $ \pd -> copyArray pd ps 1
   poke pd src = BA.withByteArray src $ \ps -> copyArray pd ps 1
 
---------------------------------------------------------------------------------
-{-
-newtype SHO = SHO Hasher
-  deriving (BA.ByteArrayAccess)
-
-sho :: Context -> IO SHO -- ^
-sho ctx = do
-  dctx :: Digest BIO.KEY_LEN <- hash [ctx]
-
-
-  hahs
-
-  let Just key0 = BIO.key (hash [ctx] :: BIO.Digest BIO.KEY_LEN)
-  in SHO $! hasherKeyed key0
-
-absorb :: BA.ByteArrayAccess bin => SHO -> [bin] -> SHO -- ^
-absorb (SHO h) = SHO . update h
-
-ratchet :: SHO -> SHO -- ^
-ratchet (SHO h0) =
-  let Just key0 = BIO.key (finalize h0 :: BIO.Digest BIO.KEY_LEN)
-  in SHO $! hasherKeyed key0
-
-squeeze
-  :: forall len
-  .  KnownNat len
-  => SHO
-  -> BIO.Digest len -- ^
-squeeze (SHO h0) = unsafeDupablePerformIO $ do
-  let digestLen = fromIntegral (natVal (Proxy @len))
-  h1 <- BIO.copyHasher h0
-  BIO.modifyHasher h1 $ \ph1 ->
-    fmap snd $ BIO.BAS.allocRet $ \pd ->
-    BIO.c_finalize_seek ph1 64 pd digestLen
-{-# NOINLINE squeeze #-}
-
--}
 --------------------------------------------------------------------------------
 
 -- | @void blake3_hasher_init(blake3_hasher *self)@

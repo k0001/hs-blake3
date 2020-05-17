@@ -14,7 +14,7 @@
 
 * Added `ByteArrayAccess` instance for `Context`.
 
-* Added `modifyHasher`, `digest`.
+* Added `finalizeSeek`, `modifyHasher`, `digest`.
 
 * More tests.
 
