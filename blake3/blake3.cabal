@@ -77,7 +77,7 @@ library
   else
     cc-options: -DBLAKE3_NO_AVX2
 
-  -- AVX2 support
+  -- SSE 4.1 support
   if flag(sse41)
     if arch(x86_64) && (os(linux) || os(darwin))
       c-sources: cbits/blake3_sse41_x86-64_unix.S
