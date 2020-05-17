@@ -141,6 +141,7 @@ instance Eq Key where
 instance Show Key where
   show (Key x) = showBase16 x
 
+-- | Length is 'KEY_LEN'.
 instance BA.ByteArrayAccess Key where
   length (Key x) = BA.length x
   withByteArray (Key x) = BA.withByteArray x
@@ -192,7 +193,6 @@ instance Show Context where
 
 -- | 'fromString' is a /partial/ function that fails if the given 'String'
 -- contains 'Char's outside the range @['toEnum' 1 .. 'toEnum' 255]@.
---
 -- See 'context' for more details.
 instance IsString Context where
   fromString s = case traverse charToWord8 s of
@@ -358,10 +358,11 @@ type MAX_SIMD_DEGREE = 16
 
 -- | BLAKE3 internal state.
 --
--- Obtain with 'BLAKE3.hasher', 'BLAKE3.hasherKeyed', 'allocRetHasher'.
+-- Obtain with 'BLAKE3.hasher', 'BLAKE3.hasherKeyed'.
 newtype Hasher = Hasher (BAS.SizedByteArray HASHER_SIZE BA.ScrubbedBytes)
   deriving newtype
     ( BA.ByteArrayAccess
+      -- ^ Length is 'HASHER_SIZE'.
     , BAS.ByteArrayN HASHER_SIZE
       -- ^ Allocate a 'Hasher'.
       -- The memory is wiped and freed as soon as the 'Hasher' becomes unused.
