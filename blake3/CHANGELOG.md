@@ -9,8 +9,8 @@
 * COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: Drop `allocRetHasher`,
   `allocRetKey`, `allocRetDigest`.
 
-* Added `Storable`, `ByteArrayAccess` and `ByteArrayN` instances for `Hasher`,
-  `Key` and `Digest`.
+* Added `Eq`, `Show`, `Storable`, `ByteArrayAccess` and `ByteArrayN` instances
+  for `Hasher`, `Key` and `Digest`.
 
 * Added `ByteArrayAccess` instance for `Context`.
 
