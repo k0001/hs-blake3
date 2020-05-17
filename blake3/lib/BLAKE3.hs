@@ -71,6 +71,9 @@ hash bins = unsafeDupablePerformIO $ do
 
 -- | BLAKE3 hashing with a 'BIO.Key'.
 --
+-- This can be used for MAC (message authentication code), PRF (pseudo random
+-- function) and SHO (stateful hash object) purposes.
+--
 -- For incremental hashing, see 'hasherKeyed', 'update' and 'finalize':
 --
 -- @
@@ -90,6 +93,8 @@ hashKeyed key0 bins = unsafeDupablePerformIO $ do
 {-# NOINLINE hashKeyed #-}
 
 -- | BLAKE3 key derivation.
+--
+-- This can be used for KDF (key derivation function) purposes.
 derive
   :: forall len ikm
   .  (KnownNat len, BA.ByteArrayAccess ikm)
