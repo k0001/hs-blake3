@@ -371,6 +371,7 @@ newtype Hasher = Hasher (BAS.SizedByteArray HASHER_SIZE BA.ScrubbedBytes)
 instance Eq Hasher where
   (==) = BA.eq
 
+-- | Base 16 (hexadecimal).
 instance Show Hasher where
   show = showBase16
 
