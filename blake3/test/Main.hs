@@ -122,6 +122,10 @@ tt_context = testGroup "Context"
   , testCase "has null" $ do
       Nothing @=? B.context ("\NUL" :: BA.ScrubbedBytes)
       Nothing @=? B.context ("hi\NUL" :: BA.ScrubbedBytes)
+  , testCase "fromString" $ do
+      Just "" @=? B.context ("" :: BA.ScrubbedBytes)
+      Just "a" @=? B.context ("a" :: BA.ScrubbedBytes)
+      Just "ab" @=? B.context ("ab" :: BA.ScrubbedBytes)
   ]
 
 tt_testVectors :: TestTree

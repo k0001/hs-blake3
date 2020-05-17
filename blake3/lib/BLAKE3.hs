@@ -125,7 +125,7 @@ update
   -> BIO.Hasher
 update h0 bins = unsafeDupablePerformIO $ do
   h1 <- BIO.copyHasher h0
-  BIO.withHasherInternal h1 $ \ph1 -> do
+  BIO.modifyHasher h1 $ \ph1 -> do
     BIO.update ph1 bins
     pure h1
 {-# NOINLINE update #-}
@@ -138,6 +138,6 @@ finalize
   -> BIO.Digest len
 finalize h0 = unsafeDupablePerformIO $ do
   h1 <- BIO.copyHasher h0
-  BIO.withHasherInternal h1 $ \ph1 ->
+  BIO.modifyHasher h1 $ \ph1 ->
     BIO.finalize ph1
 {-# NOINLINE finalize #-}

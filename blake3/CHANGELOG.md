@@ -1,3 +1,20 @@
+# Version 0.2
+
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: Drop the `BLAKE3.Raw` module
+  in favor of `BLAKE.IO`. Re-export internals from there. Drop `HasherInternal`
+  and related functions in favor of `Ptr Hasher`.
+
+* Added `Storable` and `ByteArrayAccess` instance for `Hasher`.
+
+* Added `ByteArrayAccess` instance for `Context`.
+
+* Added `modifyHasher`.
+
+* More tests.
+
+* Documentation improvements.
+
+
 # Version 0.1.1
 
 * Enabled AVX-512, AVX2 and SSE-4.1 support.

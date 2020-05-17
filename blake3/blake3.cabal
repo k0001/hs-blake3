@@ -1,6 +1,6 @@
 cabal-version: 2.2
 name: blake3
-version: 0.1.1
+version: 0.2
 license: Apache-2.0
 license-file: LICENSE
 extra-source-files: README.md CHANGELOG.md
@@ -48,7 +48,6 @@ library
   exposed-modules:
     BLAKE3
     BLAKE3.IO
-    BLAKE3.Raw
   cc-options: -O3
   include-dirs: cbits/
   c-sources:
