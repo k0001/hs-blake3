@@ -22,7 +22,6 @@ module BLAKE3
     hash
   , BIO.Digest(..)
     -- * Keyed hashing
-  , hashKeyed
   , BIO.Key
   , BIO.key
     -- * Key derivation
@@ -31,8 +30,7 @@ module BLAKE3
   , BIO.context
     -- * Incremental hashing
   , BIO.Hasher
-  , hasher
-  , hasherKeyed
+  , init
   , update
   , finalize
   , finalizeSeek
@@ -47,6 +45,7 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteArray.Sized as BAS
 import Data.Proxy
 import Data.Word
+import Prelude hiding (init)
 import System.IO.Unsafe (unsafeDupablePerformIO)
 
 import qualified BLAKE3.IO as BIO
@@ -55,42 +54,19 @@ import qualified BLAKE3.IO as BIO
 
 -- | BLAKE3 hashing.
 --
--- For incremental hashing, see 'hasher', 'update' and 'finalize':
+-- For incremental hashing, see 'init', 'update' and 'finalize':
 --
 -- @
--- 'hash' = 'finalize' '.' 'update' 'hasher'
+-- 'hash' yk = 'finalize' '.' 'update' ('init' yk)
 -- @
 hash
   :: forall len digest bin
   .  (BAS.ByteArrayN len digest, BA.ByteArrayAccess bin)
-  => [bin]  -- ^ Data to hash.
+  => Maybe BIO.Key -- ^ Whether to use keyed hashing mode (for MAC, PRF).
+  -> [bin]  -- ^ Data to hash.
   -> digest -- ^ The @digest@ type could be @'BIO.Digest' len@.
-hash = unsafeDupablePerformIO . BIO.hash
+hash yk = unsafeDupablePerformIO . BIO.hash yk
 {-# NOINLINE hash #-}
-
--- | BLAKE3 hashing with a 'BIO.Key'.
---
--- This can be used for MAC (message authentication code), PRF (pseudo random
--- function) and SHO (stateful hash object) purposes.
---
--- For incremental hashing, see 'hasherKeyed', 'update' and 'finalize':
---
--- @
--- 'hashKeyed' key = 'finalize' '.' 'update' ('hasherKeyed' key)
--- @
-hashKeyed
-  :: forall len digest bin
-  .  (BAS.ByteArrayN len digest, BA.ByteArrayAccess bin)
-  => BIO.Key
-  -> [bin] -- ^ Data to hash.
-  -> digest -- ^ The @digest@ type could be @'BIO.Digest' len@.
-hashKeyed key0 bins = unsafeDupablePerformIO $ do
-  (dig, _ :: BIO.Hasher) <- BAS.allocRet Proxy $ \ph -> do
-    BIO.initKeyed ph key0
-    BIO.update ph bins
-    BIO.finalize ph
-  pure dig
-{-# NOINLINE hashKeyed #-}
 
 -- | BLAKE3 key derivation.
 --
@@ -110,14 +86,12 @@ derive ctx ikms = unsafeDupablePerformIO $ do
 {-# NOINLINE derive #-}
 
 -- | Initial 'BIO.Hasher' for incremental hashing.
-hasher :: BIO.Hasher -- ^
-hasher = BAS.allocAndFreeze BIO.init
-
--- | Initial 'BIO.Hasher' for incremental /keyed/ hashing.
-hasherKeyed :: BIO.Key -> BIO.Hasher -- ^
-hasherKeyed key0 =
+init
+  :: Maybe BIO.Key -- ^ Whether to use keyed hashing mode (for MAC, PRF).
+  -> BIO.Hasher
+init yk =
   BAS.allocAndFreeze $ \ph ->
-  BIO.initKeyed ph key0
+  BIO.init ph yk
 
 -- | Update 'BIO.Hasher' with new data.
 update

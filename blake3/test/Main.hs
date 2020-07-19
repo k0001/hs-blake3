@@ -90,7 +90,7 @@ tt_chunksOf = testGroup "chunksOf"
 tt_hasher :: TestTree
 tt_hasher = testGroup "Hasher"
   [ testCase "hasher: no-mutate" $ do
-      let h1 = B.hasher
+      let h1 = B.init Nothing
       "af1349b9f5f9a1a6a040" @=? show (B.finalize h1 :: B.Digest 10)
       let h2 = B.update @BA.ScrubbedBytes h1 ["upd"]
       "af1349b9f5f9a1a6a040" @=? show (B.finalize h1 :: B.Digest 10)
@@ -101,7 +101,7 @@ tt_hasher = testGroup "Hasher"
       "48503741232720f6ca03" @=? show (B.finalize h3 :: B.Digest 10)
 
   , testCase "hasherKeyed: no-mutate" $ do
-      let h1 = B.hasherKeyed testVector_key
+      let h1 = B.init (Just testVector_key)
       "92b2b75604ed3c761f9d" @=? show (B.finalize h1 :: B.Digest 10)
       let h2 = B.update @BA.ScrubbedBytes h1 ["upd"]
       "92b2b75604ed3c761f9d" @=? show (B.finalize h1 :: B.Digest 10)
@@ -112,17 +112,17 @@ tt_hasher = testGroup "Hasher"
       "b5ee60b5d89ac7e1289b" @=? show (B.finalize h3 :: B.Digest 10)
 
   , testCase "finalize vs finalizeSeek: zero" $ do
-      let dig0 :: B.Digest 50 = B.finalize B.hasher
-      let dig1 :: B.Digest 50 = B.finalizeSeek B.hasher 0
+      let dig0 :: B.Digest 50 = B.finalize (B.init Nothing)
+      let dig1 :: B.Digest 50 = B.finalizeSeek (B.init Nothing) 0
       dig0 @=? dig1
 
   , testCase "finalize vs finalizeSeek: non-zero" $ do
-      let dig0 :: B.Digest 2050 = B.finalize B.hasher
-      let dig1 :: B.Digest 50 = B.finalizeSeek B.hasher 2000
+      let dig0 :: B.Digest 2050 = B.finalize (B.init Nothing)
+      let dig1 :: B.Digest 50 = B.finalizeSeek (B.init Nothing) 2000
       BA.drop 2000 (BA.convert dig0) @=? (BA.convert dig1 :: BA.Bytes)
 
   , testCase "Storable" $ do
-      let h1 = B.hasher
+      let h1 = B.init Nothing
       h2 <- BAS.alloc $ \ph2 -> poke ph2 h1
       h1 @=? h2
       h3 <- BA.withByteArray h1 peek
@@ -132,7 +132,7 @@ tt_hasher = testGroup "Hasher"
 tt_digest :: TestTree
 tt_digest = testGroup "Digest"
   [ testCase "Storable" $ do
-      let d1 :: B.Digest 400 = B.hash ([] :: [BA.Bytes])
+      let d1 :: B.Digest 400 = B.hash Nothing ([] :: [BA.Bytes])
       d2 <- BAS.alloc $ \pd2 -> poke pd2 d1
       d1 @=? d2
       d3 <- BA.withByteArray d1 peek
@@ -202,10 +202,10 @@ mkTestTree tv = testGroup (take 16 (tv_hash tv)) $
   in case someNatVal (fromIntegral digestLen) of
        Nothing -> error "Bad tv_inputLen"
        Just (SomeNat (Proxy :: Proxy len)) ->
-         let digest :: B.Digest len = B.hash input
-             digestF :: B.Digest len = hashF input
-             digestKeyed :: B.Digest len = B.hashKeyed testVector_key input
-             digestKeyedF :: B.Digest len = hashKeyedF testVector_key input
+         let digest :: B.Digest len = B.hash Nothing input
+             digestF :: B.Digest len = hashF Nothing input
+             digestKeyed :: B.Digest len = B.hash (Just testVector_key) input
+             digestKeyedF :: B.Digest len = hashF (Just testVector_key) input
              digestDerived :: B.Digest len = B.derive testVector_context input
          in [ testCase "hash" $ tv_hash tv @=? show digest
             , testCase "hashF" $ tv_hash tv @=? show digestF
@@ -214,13 +214,9 @@ mkTestTree tv = testGroup (take 16 (tv_hash tv)) $
             , testCase "derivedKey" $ tv_derivedKey tv @=? show digestDerived
             ]
 
--- | Same as 'B.hashKeyed'. For testing.
-hashKeyedF :: (KnownNat len, BA.ByteArrayAccess bin) => B.Key -> [bin] -> B.Digest len
-hashKeyedF k = B.finalize . B.update (B.hasherKeyed k)
-
 -- | Same as 'B.hash'. For testing.
-hashF :: (KnownNat len, BA.ByteArrayAccess bin) => [bin] -> B.Digest len
-hashF = B.finalize . B.update B.hasher
+hashF :: (KnownNat len, BA.ByteArrayAccess bin) => Maybe B.Key -> [bin] -> B.Digest len
+hashF yk = B.finalize . B.update (B.init yk)
 
 testVectors :: [TestVector]
 testVectors = [

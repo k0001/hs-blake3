@@ -21,7 +21,6 @@ module BLAKE3.IO
     -- * Keyed hashing
   , Key
   , key
-  , initKeyed
     -- * Key derivation
   , Context
   , context
@@ -219,11 +218,12 @@ showBase16 = fmap (toEnum . fromIntegral)
 hash
   :: forall len digest bin
   .  (BAS.ByteArrayN len digest, BA.ByteArrayAccess bin)
-  => [bin] -- ^ Data to hash.
-  -> IO digest -- ^ The @digest@ type could be @'Digest' len@.
-hash bins = do
+  => Maybe Key  -- ^ Whether to use keyed hashing mode (for MAC, PRF).
+  -> [bin]      -- ^ Data to hash.
+  -> IO digest  -- ^ The @digest@ type could be @'Digest' len@.
+hash yk bins = do
   (dig, _ :: Hasher) <- BAS.allocRet Proxy $ \ph -> do
-    init ph
+    init ph yk
     update ph bins
     finalize ph
   pure dig
@@ -231,17 +231,11 @@ hash bins = do
 -- | Initialize a 'Hasher'.
 init
   :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar. It will be mutated.
+  -> Maybe Key   -- ^ Whether to use keyed hashing mode (for MAC, PRF).
   -> IO ()
-init = c_init
-
--- | Initialize a 'Hasher' in keyed mode.
-initKeyed
-  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar. It will be mutated.
-  -> Key
-  -> IO ()
-initKeyed ph key0 =
-  BA.withByteArray key0 $ \pkey ->
-  c_init_keyed ph pkey
+init ph Nothing     = c_init ph
+init ph (Just key0) = BA.withByteArray key0 $ \pkey ->
+                      c_init_keyed ph pkey
 
 -- | Initialize a 'Hasher' in derivation mode.
 --

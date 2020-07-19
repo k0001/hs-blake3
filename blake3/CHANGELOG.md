@@ -1,5 +1,15 @@
 # Version 0.3
 
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `hash` function now takes
+  an optional `Key`.
+
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `hasher` function was
+  removed. Instead, use `init` without specifying a `Key`.
+
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `hashKeyed` and
+  `hasherKeyed` functions were removed. Instead, specify the `Key` when using
+  `hash` and `init`.
+
 * COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `digest` functions is not
   exported anymore. The `Digest` constructor is exported instead.
 
