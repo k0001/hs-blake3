@@ -17,8 +17,7 @@ module BLAKE3.IO
   , finalize
   , finalizeSeek
     -- * Digest
-  , Digest
-  , digest
+  , Digest(..)
     -- * Keyed hashing
   , Key
   , key
@@ -71,46 +70,16 @@ import qualified Data.Memory.PtrMethods as BA
 -- | Output from BLAKE3 algorithm, of @len@ bytes.
 --
 -- The default digest length for BLAKE3 is 'DEFAULT_DIGEST_LEN'.
-data Digest (len :: Nat) where
-  -- | We store things this way to avoid unnecessary conversions between
-  -- different 'BA.ByteArrayAccess' when using 'digest' for reading a 'Digest'
-  -- from a third party source.
-  --
-  -- Digest produced by this library are always allocated with 'BAS.allocRet'.
-  Digest :: BA.ByteArrayAccess x => x -> Digest len
-
--- | Obtain a digest containing bytes from a third-party source.
---
--- This is useful if you want to use the 'Digest' datatype in your programs, but
--- you are loading the pre-calculated digests from a database or similar.
-digest
-  :: forall len bin
-  .  (KnownNat len, BA.ByteArrayAccess bin)
-  => bin  -- ^ Raw digest bytes. Must have length @len@.
-  -> Maybe (Digest len)  -- ^
-digest bin
-  | BA.length bin /= fromIntegral (natVal (Proxy @len)) = Nothing
-  | otherwise = Just (Digest bin)
-
--- | Constant time.
-instance Eq (Digest len) where
-  Digest a == Digest b = BA.constEq a b
+newtype Digest (len :: Nat)
+  = Digest (BAS.SizedByteArray len BA.ScrubbedBytes)
+  deriving newtype ( Eq -- ^ Constant time.
+                   , Ord
+                   , BA.ByteArrayAccess
+                   , BAS.ByteArrayN len )
 
 -- | Base 16 (hexadecimal).
 instance Show (Digest len) where
-  show (Digest x) = showBase16 x
-
-instance BA.ByteArrayAccess (Digest len) where
-  length (Digest x) = BA.length x
-  withByteArray (Digest x) = BA.withByteArray x
-
--- | Allocate a 'Digest'.
--- The memory is wiped and freed as soon the 'Digest' becomes unused.
-instance KnownNat len => BAS.ByteArrayN len (Digest len) where
-  allocRet prx g = do
-    let size = fromIntegral (natVal prx)
-    (a, bs :: BA.ScrubbedBytes) <- BA.allocRet size g
-    pure (a, Digest bs)
+  show (Digest x) = showBase16 (BAS.unSizedByteArray x)
 
 -- | When allocating a 'Digest', prefer to use 'BAS.alloc', which
 -- wipes and releases the memory as soon it becomes unused.
@@ -135,7 +104,8 @@ data Key where
 
 -- | Constant time.
 instance Eq Key where
-  Key a == Key b = BA.constEq a b
+  (==) = BA.constEq
+  {-# INLINE (==) #-}
 
 -- | Base 16 (hexadecimal).
 instance Show Key where
@@ -147,6 +117,7 @@ instance BA.ByteArrayAccess Key where
   withByteArray (Key x) = BA.withByteArray x
 
 -- | Allocate a 'Key'.
+--
 -- The memory is wiped and freed as soon as the 'Key' becomes unused.
 instance BAS.ByteArrayN KEY_LEN Key where
   allocRet _ g = do
@@ -246,13 +217,10 @@ showBase16 = fmap (toEnum . fromIntegral)
 
 -- | BLAKE3 hashing.
 hash
-  :: forall len bin
-  .  (KnownNat len, BA.ByteArrayAccess bin)
-  => [bin]
-  -- ^ Data to hash.
-  -> IO (Digest len)
-  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
-  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+  :: forall len digest bin
+  .  (BAS.ByteArrayN len digest, BA.ByteArrayAccess bin)
+  => [bin] -- ^ Data to hash.
+  -> IO digest -- ^ The @digest@ type could be @'Digest' len@.
 hash bins = do
   (dig, _ :: Hasher) <- BAS.allocRet Proxy $ \ph -> do
     init ph
@@ -298,32 +266,29 @@ update ph bins =
   BA.withByteArray bin $ \pbin ->
   c_update ph pbin (fromIntegral (BA.length bin))
 
--- | Finalize incremental hashin and obtain a 'Digest'.
+-- | Finalize incremental hashing and obtain a the BLAKE3 output of the
+-- specified @len@gth.
 finalize
-  :: forall len
-  .  KnownNat len
+  :: forall len output
+  .  BAS.ByteArrayN len output
   => Ptr Hasher -- ^ Obtain with 'modifyHasher'. It will be mutated.
-  -> IO (Digest len)
-  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
-  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+  -> IO output  -- ^ The @output@ type could be @'Digest' len@.
 finalize ph =
   BAS.alloc $ \pd ->
   c_finalize ph pd (fromIntegral (natVal (Proxy @len)))
 
--- | Finalize incremental hashing and obtain a 'Digest' of length @len@ /after/
--- the specified number of bytes of BLAKE3 output.
+-- | Finalize incremental hashing and obtain the specified @len@gth of BLAKE3
+-- output starting at the specified offset.
 --
 -- @
 -- 'finalize' h = 'finalizeSeek' h 0
 -- @
 finalizeSeek
-  :: forall len
-  .  KnownNat len
+  :: forall len output
+  .  BAS.ByteArrayN len output
   => Ptr Hasher -- ^ Obtain with 'modifyHasher'. It will be mutated.
-  -> Word64     -- ^ Number of bytes to skip before obtaning the digest output.
-  -> IO (Digest len)
-  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
-  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+  -> Word64     -- ^ BLAKE3 output offset.
+  -> IO output
 finalizeSeek ph pos =
   BAS.alloc $ \pd ->
   c_finalize_seek ph pos pd (fromIntegral (natVal (Proxy @len)))
@@ -361,15 +326,12 @@ type MAX_SIMD_DEGREE = 16
 -- Obtain with 'BLAKE3.hasher', 'BLAKE3.hasherKeyed'.
 newtype Hasher = Hasher (BAS.SizedByteArray HASHER_SIZE BA.ScrubbedBytes)
   deriving newtype
-    ( BA.ByteArrayAccess
-      -- ^ Length is 'HASHER_SIZE'.
+    ( Eq -- ^ Constant time.
+    , BA.ByteArrayAccess -- ^ Length is 'HASHER_SIZE'.
     , BAS.ByteArrayN HASHER_SIZE
       -- ^ Allocate a 'Hasher'.
       -- The memory is wiped and freed as soon as the 'Hasher' becomes unused.
     )
-
-instance Eq Hasher where
-  (==) = BA.eq
 
 -- | Base 16 (hexadecimal).
 instance Show Hasher where

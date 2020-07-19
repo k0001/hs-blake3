@@ -91,25 +91,25 @@ tt_hasher :: TestTree
 tt_hasher = testGroup "Hasher"
   [ testCase "hasher: no-mutate" $ do
       let h1 = B.hasher
-      "af1349b9f5f9a1a6a040" @=? show (B.finalize @10 h1)
+      "af1349b9f5f9a1a6a040" @=? show (B.finalize h1 :: B.Digest 10)
       let h2 = B.update @BA.ScrubbedBytes h1 ["upd"]
-      "af1349b9f5f9a1a6a040" @=? show (B.finalize @10 h1)
-      "3bad57477a5020f06859" @=? show (B.finalize @10 h2)
+      "af1349b9f5f9a1a6a040" @=? show (B.finalize h1 :: B.Digest 10)
+      "3bad57477a5020f06859" @=? show (B.finalize h2 :: B.Digest 10)
       let h3 = B.update @BA.ScrubbedBytes h2 ["fin"]
-      "af1349b9f5f9a1a6a040" @=? show (B.finalize @10 h1)
-      "3bad57477a5020f06859" @=? show (B.finalize @10 h2)
-      "48503741232720f6ca03" @=? show (B.finalize @10 h3)
+      "af1349b9f5f9a1a6a040" @=? show (B.finalize h1 :: B.Digest 10)
+      "3bad57477a5020f06859" @=? show (B.finalize h2 :: B.Digest 10)
+      "48503741232720f6ca03" @=? show (B.finalize h3 :: B.Digest 10)
 
   , testCase "hasherKeyed: no-mutate" $ do
       let h1 = B.hasherKeyed testVector_key
-      "92b2b75604ed3c761f9d" @=? show (B.finalize @10 h1)
+      "92b2b75604ed3c761f9d" @=? show (B.finalize h1 :: B.Digest 10)
       let h2 = B.update @BA.ScrubbedBytes h1 ["upd"]
-      "92b2b75604ed3c761f9d" @=? show (B.finalize @10 h1)
-      "f46255baa87a3280d644" @=? show (B.finalize @10 h2)
+      "92b2b75604ed3c761f9d" @=? show (B.finalize h1 :: B.Digest 10)
+      "f46255baa87a3280d644" @=? show (B.finalize h2 :: B.Digest 10)
       let h3 = B.update @BA.ScrubbedBytes h2 ["fin"]
-      "92b2b75604ed3c761f9d" @=? show (B.finalize @10 h1)
-      "f46255baa87a3280d644" @=? show (B.finalize @10 h2)
-      "b5ee60b5d89ac7e1289b" @=? show (B.finalize @10 h3)
+      "92b2b75604ed3c761f9d" @=? show (B.finalize h1 :: B.Digest 10)
+      "f46255baa87a3280d644" @=? show (B.finalize h2 :: B.Digest 10)
+      "b5ee60b5d89ac7e1289b" @=? show (B.finalize h3 :: B.Digest 10)
 
   , testCase "finalize vs finalizeSeek: zero" $ do
       let dig0 :: B.Digest 50 = B.finalize B.hasher

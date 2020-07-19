@@ -20,8 +20,7 @@
 module BLAKE3
   ( -- * Hashing
     hash
-  , BIO.Digest
-  , BIO.digest
+  , BIO.Digest(..)
     -- * Keyed hashing
   , hashKeyed
   , BIO.Key
@@ -48,7 +47,6 @@ import qualified Data.ByteArray as BA
 import qualified Data.ByteArray.Sized as BAS
 import Data.Proxy
 import Data.Word
-import GHC.TypeLits
 import System.IO.Unsafe (unsafeDupablePerformIO)
 
 import qualified BLAKE3.IO as BIO
@@ -63,12 +61,10 @@ import qualified BLAKE3.IO as BIO
 -- 'hash' = 'finalize' '.' 'update' 'hasher'
 -- @
 hash
-  :: forall len bin
-  .  (KnownNat len, BA.ByteArrayAccess bin)
-  => [bin]           -- ^ Data to hash.
-  -> BIO.Digest len
-  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
-  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+  :: forall len digest bin
+  .  (BAS.ByteArrayN len digest, BA.ByteArrayAccess bin)
+  => [bin]  -- ^ Data to hash.
+  -> digest -- ^ The @digest@ type could be @'BIO.Digest' len@.
 hash = unsafeDupablePerformIO . BIO.hash
 {-# NOINLINE hash #-}
 
@@ -83,13 +79,11 @@ hash = unsafeDupablePerformIO . BIO.hash
 -- 'hashKeyed' key = 'finalize' '.' 'update' ('hasherKeyed' key)
 -- @
 hashKeyed
-  :: forall len bin
-  .  (KnownNat len, BA.ByteArrayAccess bin)
+  :: forall len digest bin
+  .  (BAS.ByteArrayN len digest, BA.ByteArrayAccess bin)
   => BIO.Key
-  -> [bin]           -- ^ Data to hash.
-  -> BIO.Digest len
-  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
-  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+  -> [bin] -- ^ Data to hash.
+  -> digest -- ^ The @digest@ type could be @'BIO.Digest' len@.
 hashKeyed key0 bins = unsafeDupablePerformIO $ do
   (dig, _ :: BIO.Hasher) <- BAS.allocRet Proxy $ \ph -> do
     BIO.initKeyed ph key0
@@ -102,13 +96,11 @@ hashKeyed key0 bins = unsafeDupablePerformIO $ do
 --
 -- This can be used for KDF (key derivation function) purposes.
 derive
-  :: forall len ikm
-  .  (KnownNat len, BA.ByteArrayAccess ikm)
+  :: forall len okm ikm
+  .  (BAS.ByteArrayN len okm, BA.ByteArrayAccess ikm)
   => BIO.Context
   -> [ikm]  -- ^ Input key material.
-  -> BIO.Digest len
-  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
-  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+  -> okm    -- ^ Output key material of the specified @len@ght.
 derive ctx ikms = unsafeDupablePerformIO $ do
   (dig, _ :: BIO.Hasher) <- BAS.allocRet Proxy $ \ph -> do
     BIO.initDerive ph ctx
@@ -138,33 +130,30 @@ update h0 bins =
   BAS.copyAndFreeze h0 $ \ph1 ->
   BIO.update ph1 bins
 
--- | Finish hashing and obtain a 'BIO.Digest' of the specified @len@gth.
+-- | Finalize incremental hashing and obtain a the BLAKE3 output of the
+-- specified @len@gth.
 finalize
-  :: forall len
-  .  KnownNat len
+  :: forall len output
+  .  BAS.ByteArrayN len output
   => BIO.Hasher
-  -> BIO.Digest len
-  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
-  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+  -> output -- ^ The @output@ type could be @'BIO.Digest' len@.
 finalize h0 = unsafeDupablePerformIO $ do
   (dig, _ :: BIO.Hasher) <- BAS.copyRet h0 BIO.finalize
   pure dig
 {-# NOINLINE finalize #-}
 
--- | Finalize incremental hashing and obtain a 'Digest' of length @len@ /after/
--- the specified number of bytes of BLAKE3 output.
+-- | Finalize incremental hashing and obtain the specified @len@gth of BLAKE3
+-- output starting at the specified offset.
 --
 -- @
 -- 'finalize' h = 'finalizeSeek' h 0
 -- @
 finalizeSeek
-  :: forall len
-  .  KnownNat len
+  :: forall len output
+  .  BAS.ByteArrayN len output
   => BIO.Hasher
-  -> Word64     -- ^ Number of bytes to skip before obtaning the digest output.
-  -> BIO.Digest len
-  -- ^ Default digest length is 'BIO.DEFAULT_DIGEST_LEN'.
-  -- The 'Digest' is wiped from memory as soon as the 'Digest' becomes unused.
+  -> Word64     -- ^ BLAKE3 output offset.
+  -> output     -- ^ The @output@ type could be @'BIO.Digest' len@.
 finalizeSeek h0 pos = unsafeDupablePerformIO $ do
   (dig, _ :: BIO.Hasher) <- BAS.copyRet h0 $ \ph -> BIO.finalizeSeek ph pos
   pure dig

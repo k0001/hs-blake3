@@ -1,3 +1,13 @@
+# Version 0.3
+
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `digest` functions is not
+  exported anymore. The `Digest` constructor is exported instead.
+
+* Functions that previously returned a `Digest` now return a polymorphic
+  `ByteArrayN`. This makes it easy for downstream libraries to reuse any BLAKE3
+  output for other purposes without having to copy bytes over. The `Digest`
+  datatype is still exported as a convenience.
+
 # Version 0.2
 
 * COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: Drop the `BLAKE3.Raw` module
