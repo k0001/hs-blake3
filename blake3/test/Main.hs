@@ -29,7 +29,6 @@ tt_BLAKE3 :: TestTree
 tt_BLAKE3 = testGroup "BLAKE3"
   [ tt_chunksOf
   , tt_testVectors
-  , tt_context
   , tt_key
   , tt_hasher
   , tt_digest
@@ -139,23 +138,8 @@ tt_digest = testGroup "Digest"
       d1 @=? d3
   ]
 
-testVector_context :: B.Context
+testVector_context :: BA.ScrubbedBytes
 testVector_context = "BLAKE3 2019-12-27 16:29:52 test vectors context"
-
-tt_context :: TestTree
-tt_context = testGroup "Context"
-  [ testCase "empty" $ do
-      Just "" @=? fmap show (B.context ("" :: BA.ScrubbedBytes))
-  , testCase "non-empty" $ do
-      Just "6869" @=? fmap show (B.context ("hi" :: BA.ScrubbedBytes))
-  , testCase "has null" $ do
-      Nothing @=? B.context ("\NUL" :: BA.ScrubbedBytes)
-      Nothing @=? B.context ("hi\NUL" :: BA.ScrubbedBytes)
-  , testCase "fromString" $ do
-      Just "" @=? B.context ("" :: BA.ScrubbedBytes)
-      Just "a" @=? B.context ("a" :: BA.ScrubbedBytes)
-      Just "ab" @=? B.context ("ab" :: BA.ScrubbedBytes)
-  ]
 
 tt_testVectors :: TestTree
 tt_testVectors = testGroup "TestVectors" (fmap mkTestTree testVectors)

@@ -22,8 +22,6 @@ module BLAKE3.IO
   , Key
   , key
     -- * Key derivation
-  , Context
-  , context
   , initDerive
     -- * Hasher
   , Hasher
@@ -40,19 +38,17 @@ module BLAKE3.IO
     -- * Low-level C bindings
   , c_init
   , c_init_keyed
-  , c_init_derive_key
+  , c_init_derive_key_raw
   , c_update
   , c_finalize
   , c_finalize_seek
   )
   where
 
-import Control.Monad (guard)
 import Data.Foldable
 import Data.Proxy
 import Data.String
 import Data.Word
-import Foreign.C.String
 import Foreign.C.Types
 import Foreign.Marshal.Array (copyArray)
 import Foreign.Ptr
@@ -62,7 +58,6 @@ import Prelude hiding (init)
 import qualified Data.ByteArray as BA
 import qualified Data.ByteArray.Sized as BAS
 import qualified Data.ByteArray.Encoding as BA
-import qualified Data.Memory.PtrMethods as BA
 
 --------------------------------------------------------------------------------
 
@@ -143,70 +138,6 @@ key bin | BA.length bin /= keyLen = Nothing
 
 --------------------------------------------------------------------------------
 
--- | Context for BLAKE3 key derivation. Obtain with 'context'.
-newtype Context
-  = Context BA.Bytes
-  -- ^ NUL-terminated 'CString'. We store things this way so as to avoid
-  -- re-creating the 'CString' each time we need to use this 'Context' in
-  -- 'c_init_derive_key'. We never expose the NUL-terminating byte to users
-  -- of this library.
-  deriving newtype (Eq)
-
--- We exclude the NUL-terminating byte. That's internal.
-instance BA.ByteArrayAccess Context where
-  length (Context x) = max 0 (BA.length x - 1)
-  withByteArray c@(Context x) = BA.withByteArray (BA.takeView x (BA.length c))
-
--- | Base 16 (hexadecimal).
-instance Show Context where
-  show = showBase16
-
--- | 'fromString' is a /partial/ function that fails if the given 'String'
--- contains 'Char's outside the range @['toEnum' 1 .. 'toEnum' 255]@.
--- See 'context' for more details.
-instance IsString Context where
-  fromString s = case traverse charToWord8 s of
-      Nothing -> error "Not a valid String for Context"
-      Just w8s -> Context $! BA.pack (w8s <> [0])
-    where
-      charToWord8 :: Char -> Maybe Word8
-      charToWord8 c = do
-        let i = fromEnum c
-        guard (i > 0 && i < 256)
-        pure (fromIntegral i)
-
--- | Obtain a 'Context' for BLAKE3 key derivation.
---
--- The context should be hardcoded, globally unique, and
--- application-specific.
---
--- A good format for the context string is:
---
--- @
--- [application] [commit timestamp] [purpose]
--- @
---
--- For example:
---
--- @
--- example.com 2019-12-25 16:18:03 session tokens v1
--- @
-context
-  :: BA.ByteArrayAccess bin
-  => bin -- ^ If @bin@ contains null bytes, this function returns 'Nothing'.
-  -> Maybe Context
-context src
-  | BA.any (0 ==) src = Nothing
-  | otherwise = Just $ Context $
-      let srcLen = BA.length src
-          dstLen = srcLen + 1
-      in BA.allocAndFreeze dstLen $ \pdst ->
-         BA.withByteArray src $ \psrc -> do
-           BA.memCopy pdst psrc srcLen
-           pokeByteOff pdst srcLen (0 :: Word8)
-
---------------------------------------------------------------------------------
-
 showBase16 :: BA.ByteArrayAccess x => x -> String
 showBase16 = fmap (toEnum . fromIntegral)
            . BA.unpack @BA.ScrubbedBytes
@@ -241,12 +172,14 @@ init ph (Just key0) = BA.withByteArray key0 $ \pkey ->
 --
 -- The input key material must be provided afterwards, using 'update'.
 initDerive
-  :: Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar. It will be mutated.
-  -> Context
+  :: forall context
+  .  BA.ByteArrayAccess context
+  => Ptr Hasher  -- ^ Obtain with 'BAS.alloc' or similar. It will be mutated.
+  -> context
   -> IO ()
-initDerive ph (Context ctx) =
+initDerive ph ctx =
   BA.withByteArray ctx $ \pc ->
-  c_init_derive_key ph pc
+  c_init_derive_key_raw ph pc (fromIntegral (BA.length ctx))
 
 -- | Update 'Hasher' state with new data.
 update
@@ -368,14 +301,16 @@ foreign import ccall unsafe
                    -- Otherwise, any chunk of length 'KEY_LEN' will do.
     -> IO ()
 
--- | @void blake3_hasher_init_derive_key(blake3_hasher *self, const char *context)@
+
+-- | @void blake3_hasher_init_derive_key_raw(blake3_hasher *self, const void *context, size_t context_len)@
 foreign import ccall unsafe
-  "blake3.h blake3_hasher_init_derive_key"
-  c_init_derive_key
+  "blake3.h blake3_hasher_init_derive_key_raw"
+  c_init_derive_key_raw
     :: Ptr Hasher  -- ^ You can obtain with 'BAS.alloc'.
                    -- Otherwise, any chunk of 'HASHER_SIZE' bytes aligned to
                    -- 'HASHER_ALIGNMENT' will do.
-    -> CString  -- ^ Context.
+    -> Ptr Word8   -- ^ Context.
+    -> CSize       -- ^ Context length.
     -> IO ()
 
 -- | @void blake3_hasher_update(blake3_hasher *self, const void *input, size_t input_len)@

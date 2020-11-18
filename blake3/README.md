@@ -2,7 +2,7 @@
 
 Bindings to
 the [official fast BLAKE3 implementations in assembly and C](https://github.com/BLAKE3-team/BLAKE3),
-with support for AVX-512, AVX2 and SSE 4.1.
+with support for AVX-512, AVX2 and SSE 4.1, SSE 2.
 
 # Development
 

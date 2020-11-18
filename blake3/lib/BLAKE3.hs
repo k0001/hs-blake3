@@ -7,7 +7,7 @@
 
 -- | Haskell bindings to the fast [official BLAKE3 hashing
 -- implementation in assembly and C](https://github.com/BLAKE3-team/BLAKE3).
--- With support for AVX-512, AVX2 and SSE 4.1.
+-- With support for AVX-512, AVX2, SSE 2, and 4.1.
 --
 -- The original assembly and C implementation is released into the public domain with CC0 1.0.
 -- Alternatively, it is licensed under the Apache License 2.0, copyright of Jack
@@ -26,8 +26,6 @@ module BLAKE3
   , BIO.key
     -- * Key derivation
   , derive
-  , BIO.Context
-  , BIO.context
     -- * Incremental hashing
   , BIO.Hasher
   , init
@@ -71,12 +69,29 @@ hash yk = unsafeDupablePerformIO . BIO.hash yk
 -- | BLAKE3 key derivation.
 --
 -- This can be used for KDF (key derivation function) purposes.
+-- 
+-- The key derivation @context@ should be hardcoded, globally unique, 
+-- application-specific well-known string. 
+--
+-- A good format for the context string is:
+--
+-- @
+-- [application] [commit timestamp] [purpose]
+-- @
+--
+-- For example:
+--
+-- @
+-- example.com 2019-12-25 16:18:03 session tokens v1
+-- @
 derive
-  :: forall len okm ikm
-  .  (BAS.ByteArrayN len okm, BA.ByteArrayAccess ikm)
-  => BIO.Context
-  -> [ikm]  -- ^ Input key material.
-  -> okm    -- ^ Output key material of the specified @len@ght.
+  :: forall len okm ikm context
+  .  (BAS.ByteArrayN len okm, 
+      BA.ByteArrayAccess ikm, 
+      BA.ByteArrayAccess context)
+  => context -- ^ Key derivation context. 
+  -> [ikm]   -- ^ Input key material. 
+  -> okm     -- ^ Output key material of the specified @len@ght.
 derive ctx ikms = unsafeDupablePerformIO $ do
   (dig, _ :: BIO.Hasher) <- BAS.allocRet Proxy $ \ph -> do
     BIO.initDerive ph ctx
@@ -132,6 +147,3 @@ finalizeSeek h0 pos = unsafeDupablePerformIO $ do
   (dig, _ :: BIO.Hasher) <- BAS.copyRet h0 $ \ph -> BIO.finalizeSeek ph pos
   pure dig
 {-# NOINLINE finalizeSeek #-}
-
---------------------------------------------------------------------------------
-

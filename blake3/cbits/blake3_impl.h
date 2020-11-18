@@ -28,7 +28,7 @@ enum blake3_flags {
 #define INLINE static inline __attribute__((always_inline))
 #endif
 
-#if defined(__x86_64__) || defined(_M_X64)
+#if defined(__x86_64__) || defined(_M_X64) 
 #define IS_X86
 #define IS_X86_64
 #endif
@@ -53,21 +53,23 @@ enum blake3_flags {
 #define MAX_SIMD_DEGREE 1
 #endif
 
+// There are some places where we want a static size that's equal to the
+// MAX_SIMD_DEGREE, but also at least 2.
+#define MAX_SIMD_DEGREE_OR_2 (MAX_SIMD_DEGREE > 2 ? MAX_SIMD_DEGREE : 2)
+
 // On GCC and Clang we can enable intrinsics per function, rather than
 // requiring their respective -mavx2, -mavx512vl, etc. compiler flags.
 #if defined(__GNUC__) || defined(__clang__)
 #  define TARGET_AVX2 __attribute__((target("avx2")))
 #  define TARGET_AVX512 __attribute__((target("avx512vl,avx512f")))
 #  define TARGET_SSE41 __attribute__((target("sse4.1")))
+#  define TARGET_SSE2 __attribute__((target("sse2")))
 #else
 #  define TARGET_AVX2    // On MSVC, use the compiler flag /arch:AVX2
 #  define TARGET_AVX512  // On MSVC, use the compiler flag /argc:AVX512
 #  define TARGET_SSE41   // On MSVC, this is always enabled.
+#  define TARGET_SSE2    // On MSVC, this is always enabled.
 #endif
-
-// There are some places where we want a static size that's equal to the
-// MAX_SIMD_DEGREE, but also at least 2.
-#define MAX_SIMD_DEGREE_OR_2 (MAX_SIMD_DEGREE > 2 ? MAX_SIMD_DEGREE : 2)
 
 static const uint32_t IV[8] = {0x6A09E667UL, 0xBB67AE85UL, 0x3C6EF372UL,
                                0xA54FF53AUL, 0x510E527FUL, 0x9B05688CUL,
@@ -129,7 +131,7 @@ INLINE unsigned int popcnt(uint64_t x) {
 }
 
 // Largest power of two less than or equal to x. As a special case, returns 1
-// when x is 0.
+// when x is 0. 
 INLINE uint64_t round_down_to_power_of_2(uint64_t x) {
   return 1ULL << highest_one(x | 1);
 }
@@ -156,6 +158,25 @@ INLINE void load_key_words(const uint8_t key[BLAKE3_KEY_LEN],
   key_words[5] = load32(&key[5 * 4]);
   key_words[6] = load32(&key[6 * 4]);
   key_words[7] = load32(&key[7 * 4]);
+}
+
+INLINE void store32(void *dst, uint32_t w) {
+  uint8_t *p = (uint8_t *)dst;
+  p[0] = (uint8_t)(w >> 0);
+  p[1] = (uint8_t)(w >> 8);
+  p[2] = (uint8_t)(w >> 16);
+  p[3] = (uint8_t)(w >> 24);
+}
+
+INLINE void store_cv_words(uint8_t bytes_out[32], uint32_t cv_words[8]) {
+  store32(&bytes_out[0 * 4], cv_words[0]);
+  store32(&bytes_out[1 * 4], cv_words[1]);
+  store32(&bytes_out[2 * 4], cv_words[2]);
+  store32(&bytes_out[3 * 4], cv_words[3]);
+  store32(&bytes_out[4 * 4], cv_words[4]);
+  store32(&bytes_out[5 * 4], cv_words[5]);
+  store32(&bytes_out[6 * 4], cv_words[6]);
+  store32(&bytes_out[7 * 4], cv_words[7]);
 }
 
 void blake3_compress_in_place(uint32_t cv[8],
@@ -194,6 +215,21 @@ void blake3_hash_many_portable(const uint8_t *const *inputs, size_t num_inputs,
                                uint8_t flags_end, uint8_t *out);
 
 #if defined(IS_X86)
+#if !defined(BLAKE3_NO_SSE2)
+void blake3_compress_in_place_sse2(uint32_t cv[8],
+                                   const uint8_t block[BLAKE3_BLOCK_LEN],
+                                   uint8_t block_len, uint64_t counter,
+                                   uint8_t flags);
+void blake3_compress_xof_sse2(const uint32_t cv[8],
+                              const uint8_t block[BLAKE3_BLOCK_LEN],
+                              uint8_t block_len, uint64_t counter,
+                              uint8_t flags, uint8_t out[64]);
+void blake3_hash_many_sse2(const uint8_t *const *inputs, size_t num_inputs,
+                           size_t blocks, const uint32_t key[8],
+                           uint64_t counter, bool increment_counter,
+                           uint8_t flags, uint8_t flags_start,
+                           uint8_t flags_end, uint8_t *out);
+#endif
 #if !defined(BLAKE3_NO_SSE41)
 void blake3_compress_in_place_sse41(uint32_t cv[8],
                                     const uint8_t block[BLAKE3_BLOCK_LEN],
@@ -242,5 +278,6 @@ void blake3_hash_many_neon(const uint8_t *const *inputs, size_t num_inputs,
                            uint8_t flags, uint8_t flags_start,
                            uint8_t flags_end, uint8_t *out);
 #endif
+
 
 #endif /* BLAKE3_IMPL_H */

@@ -13,10 +13,18 @@
 * COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `digest` functions is not
   exported anymore. The `Digest` constructor is exported instead.
 
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `Context` datatype and the 
+  `context` function are not exported anymore. The `derive` function takes a 
+  polymorphic context instead.
+
 * Functions that previously returned a `Digest` now return a polymorphic
   `ByteArrayN`. This makes it easy for downstream libraries to reuse any BLAKE3
   output for other purposes without having to copy bytes over. The `Digest`
   datatype is still exported as a convenience.
+
+* Added SSE2 instructions support.
+
+* Bumped C BLAKE3 code. 
 
 # Version 0.2
 
