@@ -5,10 +5,10 @@
         "homepage": null,
         "owner": "k0001",
         "repo": "by",
-        "rev": "041778a71c05420e2a09170c198ef35a72cb8e21",
-        "sha256": "1h0ym9w2vb5alfwlrq1iwsppccc02icf1bh7w8hyswq1bd7g2gvj",
+        "rev": "062a9c369835cb955dc54a7406befa0a437eaf1c",
+        "sha256": "1wbixrwg4sygx2qhjg3fhd4rlzzv2m39yvjarcv2b9hx0x16dg2s",
         "type": "tarball",
-        "url": "https://github.com/k0001/by/archive/041778a71c05420e2a09170c198ef35a72cb8e21.tar.gz",
+        "url": "https://github.com/k0001/by/archive/062a9c369835cb955dc54a7406befa0a437eaf1c.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "niv": {

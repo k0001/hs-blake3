@@ -65,13 +65,12 @@ hash bins =
   let lout = fromIntegral (natVal (Proxy @(By.Length out)))
       (_ :: Hasher, out) = 
         By.allocFreezeN $ \ph -> do
-          let ph' = castPtr ph
-          c_init ph' 
+          c_init ph
           for_ bins $ \msg -> 
             By.peek msg $ \pmsg -> 
-              c_update ph' pmsg (fromIntegral (By.length msg))
+              c_update ph pmsg (fromIntegral (By.length msg))
           fmap fst $ By.allocN $ \pout ->
-            c_finalize ph' pout lout
+            c_finalize ph pout lout
   in out
 
 -- | BLAKE3 hashing in keyed mode (for MAC, PRF).
@@ -94,14 +93,13 @@ keyed key bins =
   let lout = fromIntegral (natVal (Proxy @(By.Length out)))
       (_ :: Hasher, out) = 
         By.allocFreezeN $ \ph -> do
-          let ph' = castPtr ph
           By.peek key $ \pkey -> 
-            c_init_keyed ph' pkey
+            c_init_keyed ph pkey
           for_ bins $ \msg -> 
             By.peek msg $ \pmsg -> 
-              c_update ph' pmsg (fromIntegral (By.length msg))
+              c_update ph pmsg (fromIntegral (By.length msg))
           fmap fst $ By.allocN $ \pout ->
-            c_finalize ph' pout lout
+            c_finalize ph pout lout
   in out
 
 -- | BLAKE3 key derivation.
@@ -139,21 +137,18 @@ derive ctx ikms =
   let lout = fromIntegral (natVal (Proxy @(By.Length out)))
       (_ :: Hasher, out) = 
         By.allocFreezeN $ \ph -> do
-          let ph' = castPtr ph
           By.peek ctx $ \pctx ->
-            c_init_derive_key_raw ph' pctx (fromIntegral (By.length ctx))
+            c_init_derive_key_raw ph pctx (fromIntegral (By.length ctx))
           for_ ikms $ \ikm -> 
             By.peek ikm $ \pikm -> 
-              c_update ph' pikm (fromIntegral (By.length ikm))
+              c_update ph pikm (fromIntegral (By.length ikm))
           fmap fst $ By.allocN $ \pout ->
-            c_finalize ph' pout lout
+            c_finalize ph pout lout
   in out
 
 -- | Initial 'Hasher' for incremental hashing.
 initHash :: Hasher -- ^
-initHash = 
-  fst $ By.allocFreezeN $ \ph -> 
-  c_init (castPtr ph)
+initHash = fst $ By.allocFreezeN c_init 
 
 -- | Initial 'Hasher' for incremental keyed hashing.
 initKeyed
@@ -165,7 +160,7 @@ initKeyed
 initKeyed key = 
   fst $ By.allocFreezeN $ \ph -> 
   By.peek key $ \pkey ->
-  c_init_keyed (castPtr ph) pkey
+  c_init_keyed ph pkey
 
 -- | Initial 'Hasher' for incremental key derivation.
 initDerive
@@ -176,7 +171,7 @@ initDerive
 initDerive ctx = 
   fst $ By.allocFreezeN $ \ph -> 
   By.peek ctx $ \pc ->
-  c_init_derive_key_raw (castPtr ph) pc (fromIntegral (By.length ctx))
+  c_init_derive_key_raw ph pc (fromIntegral (By.length ctx))
 
 -- | Update 'Hasher' with new data.
 update
@@ -189,7 +184,7 @@ update h0 bins =
   fst $ By.copyFreezeN h0 $ \ph1 ->
   for_ bins $ \msg ->
   By.peek msg $ \pmsg -> 
-  c_update (castPtr ph1) pmsg (fromIntegral (By.length msg))
+  c_update ph1 pmsg (fromIntegral (By.length msg))
 
 -- | Finalize incremental hashing and obtain the specified @len@gth of BLAKE3
 -- output starting at the specified offset.
@@ -204,8 +199,8 @@ finalize off h0 =
       (_ :: Hasher, out) = 
         By.copyFreezeN h0 $ \ph1 -> 
         fmap fst $ By.allocN $ \pout -> 
-        case off of 0 -> c_finalize (castPtr ph1) pout lout 
-                    _ -> c_finalize_seek (castPtr ph1) off pout lout
+        case off of 0 -> c_finalize ph1 pout lout 
+                    _ -> c_finalize_seek ph1 off pout lout
   in out
 
 --------------------------------------------------------------------------------
