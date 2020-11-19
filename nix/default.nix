@@ -5,7 +5,8 @@ let
     let hs = pkgs.haskell.lib;
     in {
       blake3 = super.callPackage ../blake3/pkg.nix { };
-      memory = hs.doJailbreak super.memory;
+      by = super.callPackage "${sources.by}/by/pkg.nix" { };
+
       _shell = super.shellFor {
         withHoogle = false;
         packages = p: [ p.blake3 ];

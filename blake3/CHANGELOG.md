@@ -1,26 +1,36 @@
 # Version 0.3
 
-* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `hash` function now takes
-  an optional `Key`.
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: Rely on the `by` library rather
+  than the `memory` library.
 
 * COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `hasher` function was
-  removed. Instead, use `init` without specifying a `Key`.
+  renamed to `initHash`.
 
-* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `hashKeyed` and
-  `hasherKeyed` functions were removed. Instead, specify the `Key` when using
-  `hash` and `init`.
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `hasherKeyed` function was
+  renamed to `initKeyed`.
 
-* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `digest` functions is not
-  exported anymore. The `Digest` constructor is exported instead.
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `hashKeyed` function was
+  renamed to `keyed`.
+
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `Digest` type and `digest` 
+  function are not exported anymore. Functions return a polymorphic digest instead.
 
 * COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `Context` datatype and the 
   `context` function are not exported anymore. The `derive` function takes a 
   polymorphic context instead.
 
-* Functions that previously returned a `Digest` now return a polymorphic
-  `ByteArrayN`. This makes it easy for downstream libraries to reuse any BLAKE3
-  output for other purposes without having to copy bytes over. The `Digest`
-  datatype is still exported as a convenience.
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `finalizeSeek` function was 
+  removed. The `finalize` function takes an offset parameter instead.
+
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: `BLAKE3.IO` module removed.
+
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: `Storable` instances removed.
+
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: Reamed `KEY_LEN` to `KeyLength`. 
+  Renamed `BLOCK_SIZE` to `BlockSize`. Renamed `DEFAULT_DIGEST_LEN` to 
+  `DefaultDigestLength`.
+ 
+* Export `initDerive`.
 
 * Added SSE2 instructions support.
 

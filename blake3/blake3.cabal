@@ -46,14 +46,12 @@ common basic
   ghc-options: -Wall -Werror=incomplete-patterns
   build-depends:
     base == 4.*,
-    memory
+    by
 
 library
   import: basic
   hs-source-dirs: lib
-  exposed-modules:
-    BLAKE3
-    BLAKE3.IO
+  exposed-modules: BLAKE3
   cc-options: -O3
   include-dirs: cbits/
   c-sources:
@@ -114,6 +112,7 @@ test-suite test
   main-is: Main.hs
   build-depends:
     blake3,
-    memory,
+    by,
+    bytestring,
     tasty,
     tasty-hunit,

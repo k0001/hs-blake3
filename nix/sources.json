@@ -1,4 +1,16 @@
 {
+    "by": {
+        "branch": "master",
+        "description": null,
+        "homepage": null,
+        "owner": "k0001",
+        "repo": "by",
+        "rev": "041778a71c05420e2a09170c198ef35a72cb8e21",
+        "sha256": "1h0ym9w2vb5alfwlrq1iwsppccc02icf1bh7w8hyswq1bd7g2gvj",
+        "type": "tarball",
+        "url": "https://github.com/k0001/by/archive/041778a71c05420e2a09170c198ef35a72cb8e21.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "niv": {
         "branch": "master",
         "description": "Easy dependency management for Nix projects",
