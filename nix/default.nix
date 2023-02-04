@@ -8,7 +8,7 @@ let
       memory = hs.doJailbreak super.memory;
       _shell = super.shellFor {
         withHoogle = false;
-        bulidInputs = [ pkgs.cabal-install ];
+        buildInputs = [ pkgs.cabal-install ];
         packages = p: [ p.blake3 ];
       };
     };

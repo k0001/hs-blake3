@@ -7,7 +7,7 @@
 
 -- | Haskell bindings to the fast [official BLAKE3 hashing
 -- implementation in assembly and C](https://github.com/BLAKE3-team/BLAKE3).
--- With support for AVX-512, AVX2, SSE 2, and 4.1.
+-- With support for AVX-512, AVX2, SSE 2, and SSE 4.1.
 --
 -- The original assembly and C implementation is released into the public domain with CC0 1.0.
 -- Alternatively, it is licensed under the Apache License 2.0, copyright of Jack
@@ -69,9 +69,9 @@ hash yk = unsafeDupablePerformIO . BIO.hash yk
 -- | BLAKE3 key derivation.
 --
 -- This can be used for KDF (key derivation function) purposes.
--- 
--- The key derivation @context@ should be hardcoded, globally unique, 
--- application-specific well-known string. 
+--
+-- The key derivation @context@ should be hardcoded, globally unique,
+-- application-specific well-known string.
 --
 -- A good format for the context string is:
 --
@@ -86,11 +86,11 @@ hash yk = unsafeDupablePerformIO . BIO.hash yk
 -- @
 derive
   :: forall len okm ikm context
-  .  (BAS.ByteArrayN len okm, 
-      BA.ByteArrayAccess ikm, 
+  .  (BAS.ByteArrayN len okm,
+      BA.ByteArrayAccess ikm,
       BA.ByteArrayAccess context)
-  => context -- ^ Key derivation context. 
-  -> [ikm]   -- ^ Input key material. 
+  => context -- ^ Key derivation context.
+  -> [ikm]   -- ^ Input key material.
   -> okm     -- ^ Output key material of the specified @len@ght.
 derive ctx ikms = unsafeDupablePerformIO $ do
   (dig, _ :: BIO.Hasher) <- BAS.allocRet Proxy $ \ph -> do
