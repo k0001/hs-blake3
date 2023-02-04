@@ -38,16 +38,28 @@ enum blake3_flags {
 #define IS_X86_32
 #endif
 
+#if defined(__aarch64__) || defined(_M_ARM64)
+#define IS_AARCH64
+#endif
+
 #if defined(IS_X86)
 #if defined(_MSC_VER)
 #include <intrin.h>
 #endif
-#include <immintrin.h>
+#endif
+
+#if !defined(BLAKE3_USE_NEON) 
+  // If BLAKE3_USE_NEON not manually set, autodetect based on AArch64ness
+  #if defined(IS_AARCH64)
+    #define BLAKE3_USE_NEON 1
+  #else
+    #define BLAKE3_USE_NEON 0
+  #endif
 #endif
 
 #if defined(IS_X86)
 #define MAX_SIMD_DEGREE 16
-#elif defined(BLAKE3_USE_NEON)
+#elif BLAKE3_USE_NEON == 1
 #define MAX_SIMD_DEGREE 4
 #else
 #define MAX_SIMD_DEGREE 1
@@ -56,20 +68,6 @@ enum blake3_flags {
 // There are some places where we want a static size that's equal to the
 // MAX_SIMD_DEGREE, but also at least 2.
 #define MAX_SIMD_DEGREE_OR_2 (MAX_SIMD_DEGREE > 2 ? MAX_SIMD_DEGREE : 2)
-
-// On GCC and Clang we can enable intrinsics per function, rather than
-// requiring their respective -mavx2, -mavx512vl, etc. compiler flags.
-#if defined(__GNUC__) || defined(__clang__)
-#  define TARGET_AVX2 __attribute__((target("avx2")))
-#  define TARGET_AVX512 __attribute__((target("avx512vl,avx512f")))
-#  define TARGET_SSE41 __attribute__((target("sse4.1")))
-#  define TARGET_SSE2 __attribute__((target("sse2")))
-#else
-#  define TARGET_AVX2    // On MSVC, use the compiler flag /arch:AVX2
-#  define TARGET_AVX512  // On MSVC, use the compiler flag /argc:AVX512
-#  define TARGET_SSE41   // On MSVC, this is always enabled.
-#  define TARGET_SSE2    // On MSVC, this is always enabled.
-#endif
 
 static const uint32_t IV[8] = {0x6A09E667UL, 0xBB67AE85UL, 0x3C6EF372UL,
                                0xA54FF53AUL, 0x510E527FUL, 0x9B05688CUL,
@@ -89,7 +87,7 @@ static const uint8_t MSG_SCHEDULE[7][16] = {
 /* x is assumed to be nonzero.       */
 static unsigned int highest_one(uint64_t x) {
 #if defined(__GNUC__) || defined(__clang__)
-  return 63 ^ __builtin_clzll(x);
+  return 63 ^ (unsigned int)__builtin_clzll(x);
 #elif defined(_MSC_VER) && defined(IS_X86_64)
   unsigned long index;
   _BitScanReverse64(&index, x);
@@ -97,11 +95,11 @@ static unsigned int highest_one(uint64_t x) {
 #elif defined(_MSC_VER) && defined(IS_X86_32)
   if(x >> 32) {
     unsigned long index;
-    _BitScanReverse(&index, x >> 32);
+    _BitScanReverse(&index, (unsigned long)(x >> 32));
     return 32 + index;
   } else {
     unsigned long index;
-    _BitScanReverse(&index, x);
+    _BitScanReverse(&index, (unsigned long)x);
     return index;
   }
 #else
@@ -119,7 +117,7 @@ static unsigned int highest_one(uint64_t x) {
 // Count the number of 1 bits.
 INLINE unsigned int popcnt(uint64_t x) {
 #if defined(__GNUC__) || defined(__clang__)
-  return __builtin_popcountll(x);
+  return (unsigned int)__builtin_popcountll(x);
 #else
   unsigned int count = 0;
   while (x != 0) {
@@ -271,7 +269,7 @@ void blake3_hash_many_avx512(const uint8_t *const *inputs, size_t num_inputs,
 #endif
 #endif
 
-#if defined(BLAKE3_USE_NEON)
+#if BLAKE3_USE_NEON == 1
 void blake3_hash_many_neon(const uint8_t *const *inputs, size_t num_inputs,
                            size_t blocks, const uint32_t key[8],
                            uint64_t counter, bool increment_counter,

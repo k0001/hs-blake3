@@ -8,6 +8,7 @@ let
       memory = hs.doJailbreak super.memory;
       _shell = super.shellFor {
         withHoogle = false;
+        bulidInputs = [ pkgs.cabal-install ];
         packages = p: [ p.blake3 ];
       };
     };
@@ -21,6 +22,9 @@ let
         overrides = ghc-overrides self;
       };
       ghc8101 = super.haskell.packages.ghc8101.override {
+        overrides = ghc-overrides self;
+      };
+      ghc925 = super.haskell.packages.ghc925.override {
         overrides = ghc-overrides self;
       };
     };

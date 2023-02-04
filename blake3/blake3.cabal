@@ -11,10 +11,10 @@ category: Cryptography
 build-type: Simple
 synopsis: BLAKE3 hashing algorithm
 description: Bindings to the official fast BLAKE3 implementations in assembly
-             and C, with support for AVX-512, AVX2 and SSE 4.1.
+             and C, with support for AVX-512, AVX2, SSE 2, and SSE 4.1.
 homepage: https://github.com/k0001/hs-blake3
 bug-reports: https://github.com/k0001/hs-blake3/issues
-tested-with: GHC == 8.6.5, GHC == 8.8.3
+tested-with: GHC == 9.2.5
 extra-source-files:
   cbits/*.h
   cbits/README.md
@@ -39,7 +39,6 @@ flag sse2
   description: Enable SSE 2 instructions
   default: True
   manual: True
-
 
 common basic
   default-language: Haskell2010

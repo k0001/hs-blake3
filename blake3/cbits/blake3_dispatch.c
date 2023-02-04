@@ -10,14 +10,14 @@
 #elif defined(__GNUC__)
 #include <immintrin.h>
 #else
-#error "Unimplemented!"
+#undef IS_X86 /* Unimplemented! */
 #endif
 #endif
 
 #define MAYBE_UNUSED(x) (void)((x))
 
 #if defined(IS_X86)
-static uint64_t xgetbv() {
+static uint64_t xgetbv(void) {
 #if defined(_MSC_VER)
   return _xgetbv(0);
 #else
@@ -82,7 +82,7 @@ static /* Allow the variable to be controlled manually for testing */
 static
 #endif
     enum cpu_feature
-    get_cpu_features() {
+    get_cpu_features(void) {
 
   if (g_cpu_features != UNDEFINED) {
     return g_cpu_features;
@@ -232,7 +232,7 @@ void blake3_hash_many(const uint8_t *const *inputs, size_t num_inputs,
 #endif
 #endif
 
-#if defined(BLAKE3_USE_NEON)
+#if BLAKE3_USE_NEON == 1
   blake3_hash_many_neon(inputs, num_inputs, blocks, key, counter,
                         increment_counter, flags, flags_start, flags_end, out);
   return;
@@ -269,7 +269,7 @@ size_t blake3_simd_degree(void) {
   }
 #endif
 #endif
-#if defined(BLAKE3_USE_NEON)
+#if BLAKE3_USE_NEON == 1
   return 4;
 #endif
   return 1;

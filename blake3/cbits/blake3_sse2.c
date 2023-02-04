@@ -2,58 +2,53 @@
 
 #include <immintrin.h>
 
+#if defined(__clang__)
+#pragma clang attribute push (__attribute__((target("sse2"))), apply_to=function)
+#elif defined(__GNUC__)
+#pragma GCC target("sse2")
+#endif
+
 #define DEGREE 4
 
 #define _mm_shuffle_ps2(a, b, c)                                               \
   (_mm_castps_si128(                                                           \
       _mm_shuffle_ps(_mm_castsi128_ps(a), _mm_castsi128_ps(b), (c))))
 
-TARGET_SSE2
 INLINE __m128i loadu(const uint8_t src[16]) {
   return _mm_loadu_si128((const __m128i *)src);
 }
 
-TARGET_SSE2
 INLINE void storeu(__m128i src, uint8_t dest[16]) {
   _mm_storeu_si128((__m128i *)dest, src);
 }
 
-TARGET_SSE2
 INLINE __m128i addv(__m128i a, __m128i b) { return _mm_add_epi32(a, b); }
 
 // Note that clang-format doesn't like the name "xor" for some reason.
-TARGET_SSE2
 INLINE __m128i xorv(__m128i a, __m128i b) { return _mm_xor_si128(a, b); }
 
-TARGET_SSE2
 INLINE __m128i set1(uint32_t x) { return _mm_set1_epi32((int32_t)x); }
 
-TARGET_SSE2
 INLINE __m128i set4(uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
   return _mm_setr_epi32((int32_t)a, (int32_t)b, (int32_t)c, (int32_t)d);
 }
 
-TARGET_SSE2
 INLINE __m128i rot16(__m128i x) {
   return _mm_shufflehi_epi16(_mm_shufflelo_epi16(x, 0xB1), 0xB1);
 }
 
-TARGET_SSE2
 INLINE __m128i rot12(__m128i x) {
   return xorv(_mm_srli_epi32(x, 12), _mm_slli_epi32(x, 32 - 12));
 }
 
-TARGET_SSE2
 INLINE __m128i rot8(__m128i x) {
   return xorv(_mm_srli_epi32(x, 8), _mm_slli_epi32(x, 32 - 8));
 }
 
-TARGET_SSE2
 INLINE __m128i rot7(__m128i x) {
   return xorv(_mm_srli_epi32(x, 7), _mm_slli_epi32(x, 32 - 7));
 }
 
-TARGET_SSE2
 INLINE void g1(__m128i *row0, __m128i *row1, __m128i *row2, __m128i *row3,
                __m128i m) {
   *row0 = addv(addv(*row0, m), *row1);
@@ -64,7 +59,6 @@ INLINE void g1(__m128i *row0, __m128i *row1, __m128i *row2, __m128i *row3,
   *row1 = rot12(*row1);
 }
 
-TARGET_SSE2
 INLINE void g2(__m128i *row0, __m128i *row1, __m128i *row2, __m128i *row3,
                __m128i m) {
   *row0 = addv(addv(*row0, m), *row1);
@@ -78,22 +72,19 @@ INLINE void g2(__m128i *row0, __m128i *row1, __m128i *row2, __m128i *row3,
 // Note the optimization here of leaving row1 as the unrotated row, rather than
 // row0. All the message loads below are adjusted to compensate for this. See
 // discussion at https://github.com/sneves/blake2-avx2/pull/4
-TARGET_SSE2
 INLINE void diagonalize(__m128i *row0, __m128i *row2, __m128i *row3) {
   *row0 = _mm_shuffle_epi32(*row0, _MM_SHUFFLE(2, 1, 0, 3));
   *row3 = _mm_shuffle_epi32(*row3, _MM_SHUFFLE(1, 0, 3, 2));
   *row2 = _mm_shuffle_epi32(*row2, _MM_SHUFFLE(0, 3, 2, 1));
 }
 
-TARGET_SSE2
 INLINE void undiagonalize(__m128i *row0, __m128i *row2, __m128i *row3) {
   *row0 = _mm_shuffle_epi32(*row0, _MM_SHUFFLE(0, 3, 2, 1));
   *row3 = _mm_shuffle_epi32(*row3, _MM_SHUFFLE(1, 0, 3, 2));
   *row2 = _mm_shuffle_epi32(*row2, _MM_SHUFFLE(2, 1, 0, 3));
 }
 
-TARGET_SSE2
-INLINE __m128i blend_epi16(__m128i a, __m128i b, const int imm8) {
+INLINE __m128i blend_epi16(__m128i a, __m128i b, const int16_t imm8) {
   const __m128i bits = _mm_set_epi16(0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01);
   __m128i mask = _mm_set1_epi16(imm8);
   mask = _mm_and_si128(mask, bits);
@@ -101,7 +92,6 @@ INLINE __m128i blend_epi16(__m128i a, __m128i b, const int imm8) {
   return _mm_or_si128(_mm_and_si128(mask, b), _mm_andnot_si128(mask, a));
 }
 
-TARGET_SSE2
 INLINE void compress_pre(__m128i rows[4], const uint32_t cv[8],
                          const uint8_t block[BLAKE3_BLOCK_LEN],
                          uint8_t block_len, uint64_t counter, uint8_t flags) {
@@ -273,7 +263,6 @@ INLINE void compress_pre(__m128i rows[4], const uint32_t cv[8],
   undiagonalize(&rows[0], &rows[2], &rows[3]);
 }
 
-TARGET_SSE2
 void blake3_compress_in_place_sse2(uint32_t cv[8],
                                    const uint8_t block[BLAKE3_BLOCK_LEN],
                                    uint8_t block_len, uint64_t counter,
@@ -284,7 +273,6 @@ void blake3_compress_in_place_sse2(uint32_t cv[8],
   storeu(xorv(rows[1], rows[3]), (uint8_t *)&cv[4]);
 }
 
-TARGET_SSE2
 void blake3_compress_xof_sse2(const uint32_t cv[8],
                               const uint8_t block[BLAKE3_BLOCK_LEN],
                               uint8_t block_len, uint64_t counter,
@@ -297,7 +285,6 @@ void blake3_compress_xof_sse2(const uint32_t cv[8],
   storeu(xorv(rows[3], loadu((uint8_t *)&cv[4])), &out[48]);
 }
 
-TARGET_SSE2
 INLINE void round_fn(__m128i v[16], __m128i m[16], size_t r) {
   v[0] = addv(v[0], m[(size_t)MSG_SCHEDULE[r][0]]);
   v[1] = addv(v[1], m[(size_t)MSG_SCHEDULE[r][2]]);
@@ -414,7 +401,6 @@ INLINE void round_fn(__m128i v[16], __m128i m[16], size_t r) {
   v[4] = rot7(v[4]);
 }
 
-TARGET_SSE2
 INLINE void transpose_vecs(__m128i vecs[DEGREE]) {
   // Interleave 32-bit lates. The low unpack is lanes 00/11 and the high is
   // 22/33. Note that this doesn't split the vector into two lanes, as the
@@ -436,7 +422,6 @@ INLINE void transpose_vecs(__m128i vecs[DEGREE]) {
   vecs[3] = abcd_3;
 }
 
-TARGET_SSE2
 INLINE void transpose_msg_vecs(const uint8_t *const *inputs,
                                size_t block_offset, __m128i out[16]) {
   out[0] = loadu(&inputs[0][block_offset + 0 * sizeof(__m128i)]);
@@ -456,7 +441,7 @@ INLINE void transpose_msg_vecs(const uint8_t *const *inputs,
   out[14] = loadu(&inputs[2][block_offset + 3 * sizeof(__m128i)]);
   out[15] = loadu(&inputs[3][block_offset + 3 * sizeof(__m128i)]);
   for (size_t i = 0; i < 4; ++i) {
-    _mm_prefetch(&inputs[i][block_offset + 256], _MM_HINT_T0);
+    _mm_prefetch((const void *)&inputs[i][block_offset + 256], _MM_HINT_T0);
   }
   transpose_vecs(&out[0]);
   transpose_vecs(&out[4]);
@@ -464,21 +449,20 @@ INLINE void transpose_msg_vecs(const uint8_t *const *inputs,
   transpose_vecs(&out[12]);
 }
 
-TARGET_SSE2
 INLINE void load_counters(uint64_t counter, bool increment_counter,
                           __m128i *out_lo, __m128i *out_hi) {
   const __m128i mask = _mm_set1_epi32(-(int32_t)increment_counter);
   const __m128i add0 = _mm_set_epi32(3, 2, 1, 0);
   const __m128i add1 = _mm_and_si128(mask, add0);
-  __m128i l = _mm_add_epi32(_mm_set1_epi32(counter), add1);
-  __m128i carry = _mm_cmpgt_epi32(_mm_xor_si128(add1, _mm_set1_epi32(0x80000000)), 
+  __m128i l = _mm_add_epi32(_mm_set1_epi32((int32_t)counter), add1);
+  __m128i carry = _mm_cmpgt_epi32(_mm_xor_si128(add1, _mm_set1_epi32(0x80000000)),
                                   _mm_xor_si128(   l, _mm_set1_epi32(0x80000000)));
-  __m128i h = _mm_sub_epi32(_mm_set1_epi32(counter >> 32), carry);
+  __m128i h = _mm_sub_epi32(_mm_set1_epi32((int32_t)(counter >> 32)), carry);
   *out_lo = l;
   *out_hi = h;
 }
 
-TARGET_SSE2
+static
 void blake3_hash4_sse2(const uint8_t *const *inputs, size_t blocks,
                        const uint32_t key[8], uint64_t counter,
                        bool increment_counter, uint8_t flags,
@@ -586,3 +570,8 @@ void blake3_hash_many_sse2(const uint8_t *const *inputs, size_t num_inputs,
     out = &out[BLAKE3_OUT_LEN];
   }
 }
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#endif
+

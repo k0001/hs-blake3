@@ -150,7 +150,7 @@ testVector_input n =
   in BA.pack <$> chunksOf 100 w8s
 
 testVector_key :: B.Key
-Just testVector_key = B.key
+testVector_key = maybe undefined id $ B.key
   ("whats the Elvish word for friend" :: BA.ScrubbedBytes)
 
 tt_key :: TestTree

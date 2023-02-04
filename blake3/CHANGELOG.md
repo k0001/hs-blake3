@@ -13,8 +13,8 @@
 * COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `digest` functions is not
   exported anymore. The `Digest` constructor is exported instead.
 
-* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `Context` datatype and the 
-  `context` function are not exported anymore. The `derive` function takes a 
+* COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `Context` datatype and the
+  `context` function are not exported anymore. The `derive` function takes a
   polymorphic context instead.
 
 * Functions that previously returned a `Digest` now return a polymorphic
@@ -22,9 +22,10 @@
   output for other purposes without having to copy bytes over. The `Digest`
   datatype is still exported as a convenience.
 
-* Added SSE2 instructions support.
+* Added `sse2` Cabal flag to enable SSE2 optimizations.
 
-* Bumped C BLAKE3 code. 
+* Bumped upstream BLAKE3 C sources to latest version as of February 4, 2023.
+
 
 # Version 0.2
 
