@@ -1,7 +1,7 @@
 { mkDerivation, base, lib, memory, tasty, tasty-hunit }:
 mkDerivation {
   pname = "blake3";
-  version = "0.3";
+  version = "0.3.1";
   src = ./.;
   libraryHaskellDepends = [ base memory ];
   testHaskellDepends = [ base memory tasty tasty-hunit ];

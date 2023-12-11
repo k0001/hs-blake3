@@ -1,6 +1,6 @@
-cabal-version: 2.2
+cabal-version: 3.0
 name: blake3
-version: 0.3
+version: 0.3.1
 license: Apache-2.0
 license-file: LICENSE
 extra-source-files: README.md CHANGELOG.md
@@ -63,9 +63,9 @@ library
   -- AVX-512 support
   if flag(avx512)
     if arch(x86_64) && (os(linux) || os(darwin))
-      c-sources: cbits/blake3_avx512_x86-64_unix.S
+      asm-sources: cbits/blake3_avx512_x86-64_unix.S
     elif arch(x86_64) && os(windows)
-      c-sources: cbits/blake3_avx512_x86-64_windows_gnu.S
+      asm-sources: cbits/blake3_avx512_x86-64_windows_gnu.S
     else
       c-sources: cbits/blake3_avx512.c
   else
@@ -74,9 +74,9 @@ library
   -- AVX2 support
   if flag(avx2)
     if arch(x86_64) && (os(linux) || os(darwin))
-      c-sources: cbits/blake3_avx2_x86-64_unix.S
+      asm-sources: cbits/blake3_avx2_x86-64_unix.S
     elif arch(x86_64) && os(windows)
-      c-sources: cbits/blake3_avx2_x86-64_windows_gnu.S
+      asm-sources: cbits/blake3_avx2_x86-64_windows_gnu.S
     else
       c-sources: cbits/blake3_avx2.c
   else
@@ -85,9 +85,9 @@ library
   -- SSE 4.1 support
   if flag(sse41)
     if arch(x86_64) && (os(linux) || os(darwin))
-      c-sources: cbits/blake3_sse41_x86-64_unix.S
+      asm-sources: cbits/blake3_sse41_x86-64_unix.S
     elif arch(x86_64) && os(windows)
-      c-sources: cbits/blake3_sse41_x86-64_windows_gnu.S
+      asm-sources: cbits/blake3_sse41_x86-64_windows_gnu.S
     else
       c-sources: cbits/blake3_sse41.c
   else
@@ -96,9 +96,9 @@ library
   -- SSE 2 support
   if flag(sse2)
     if arch(x86_64) && (os(linux) || os(darwin))
-      c-sources: cbits/blake3_sse2_x86-64_unix.S
+      asm-sources: cbits/blake3_sse2_x86-64_unix.S
     elif arch(x86_64) && os(windows)
-      c-sources: cbits/blake3_sse2_x86-64_windows_gnu.S
+      asm-sources: cbits/blake3_sse2_x86-64_windows_gnu.S
     else
       c-sources: cbits/blake3_sse2.c
   else

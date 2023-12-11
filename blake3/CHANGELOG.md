@@ -1,3 +1,8 @@
+# Version 0.3.1
+
+* Cabal file changes.
+
+
 # Version 0.3
 
 * COMPILER ASSISTED BACKWARDS INCOMPATIBLE CHANGE: The `hash` function now takes

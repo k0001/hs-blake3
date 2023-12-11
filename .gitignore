@@ -4,7 +4,6 @@ dist-newstyle*
 .ghc.environment.*
 cabal*.project.local
 result
-*.lock
 dist
 dist-newstyle
 dist-ghc
