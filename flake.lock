@@ -5,11 +5,11 @@
         "nixpkgs-lib": "nixpkgs-lib"
       },
       "locked": {
-        "lastModified": 1701473968,
-        "narHash": "sha256-YcVE5emp1qQ8ieHUnxt1wCZCC3ZfAS+SRRWZ2TMda7E=",
+        "lastModified": 1775087534,
+        "narHash": "sha256-91qqW8lhL7TLwgQWijoGBbiD4t7/q75KTi8NxjVmSmA=",
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "rev": "34fed993f1674c8d06d58b37ce1e0fe5eebcb9f5",
+        "rev": "3107b77cd68437b9a76194f0f7f9c55f2329ca5b",
         "type": "github"
       },
       "original": {
@@ -18,88 +18,75 @@
         "type": "github"
       }
     },
-    "flakety": {
-      "inputs": {
-        "flake-parts": "flake-parts",
-        "nixpkgs": "nixpkgs",
-        "singletons_3_2": "singletons_3_2"
-      },
+    "haskell-flake": {
       "locked": {
-        "lastModified": 1702317237,
-        "narHash": "sha256-goK+RfaljSUEvhm82bwrxZYGRNgFJ61g2GSxlVpmqKk=",
-        "owner": "k0001",
-        "repo": "flakety",
-        "rev": "88afef00ca20f96f60b5b92c4aa292f6130e2edf",
+        "lastModified": 1775425479,
+        "narHash": "sha256-U1vex46DO0kyObmPAQ69/fk3L/5Zjysdk+SjhlODfOU=",
+        "owner": "srid",
+        "repo": "haskell-flake",
+        "rev": "27e5e6e21b40056c1eee29062e3a227860eb3606",
         "type": "github"
       },
       "original": {
-        "owner": "k0001",
-        "repo": "flakety",
+        "owner": "srid",
+        "repo": "haskell-flake",
         "type": "github"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1701539137,
-        "narHash": "sha256-nVO/5QYpf1GwjvtpXhyxx5M3U/WN0MwBro4Lsk+9mL0=",
-        "owner": "NixOS",
+        "lastModified": 1774386573,
+        "narHash": "sha256-4hAV26quOxdC6iyG7kYaZcM3VOskcPUrdCQd/nx8obc=",
+        "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "933d7dc155096e7575d207be6fb7792bc9f34f6d",
+        "rev": "46db2e09e1d3f113a13c0d7b81e2f221c63b8ce9",
         "type": "github"
       },
       "original": {
-        "owner": "NixOS",
+        "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "933d7dc155096e7575d207be6fb7792bc9f34f6d",
+        "rev": "46db2e09e1d3f113a13c0d7b81e2f221c63b8ce9",
         "type": "github"
       }
     },
     "nixpkgs-lib": {
       "locked": {
-        "dir": "lib",
-        "lastModified": 1701253981,
-        "narHash": "sha256-ztaDIyZ7HrTAfEEUt9AtTDNoCYxUdSd6NrRHaYOIxtk=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "e92039b55bcd58469325ded85d4f58dd5a4eaf58",
+        "lastModified": 1774748309,
+        "narHash": "sha256-+U7gF3qxzwD5TZuANzZPeJTZRHS29OFQgkQ2kiTJBIQ=",
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "rev": "333c4e0545a6da976206c74db8773a1645b5870a",
         "type": "github"
       },
       "original": {
-        "dir": "lib",
-        "owner": "NixOS",
-        "ref": "nixos-unstable",
-        "repo": "nixpkgs",
+        "owner": "nix-community",
+        "repo": "nixpkgs.lib",
+        "type": "github"
+      }
+    },
+    "ram": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1774739967,
+        "narHash": "sha256-eMjjn48rZ70Cedw45YB2LbexrXPToGxYsmtoYHHs7Jw=",
+        "owner": "jappeace",
+        "repo": "ram",
+        "rev": "fb16285c2fc303894575757786cf8f87d183b88f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "jappeace",
+        "repo": "ram",
+        "rev": "fb16285c2fc303894575757786cf8f87d183b88f",
         "type": "github"
       }
     },
     "root": {
       "inputs": {
-        "flake-parts": [
-          "flakety",
-          "flake-parts"
-        ],
-        "flakety": "flakety",
-        "nixpkgs": [
-          "flakety",
-          "nixpkgs"
-        ]
-      }
-    },
-    "singletons_3_2": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1678643624,
-        "narHash": "sha256-LfhcxM5+dRd9cb+kC4WqlgbR1anWvVwZoGsBZQ9MrpE=",
-        "owner": "goldfirere",
-        "repo": "singletons",
-        "rev": "f8a0708bf15289cc92a04c9902c3c2dc620a0b5e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "goldfirere",
-        "ref": "singletons-th-base-3.2",
-        "repo": "singletons",
-        "type": "github"
+        "flake-parts": "flake-parts",
+        "haskell-flake": "haskell-flake",
+        "nixpkgs": "nixpkgs",
+        "ram": "ram"
       }
     }
   },

@@ -1,5 +1,7 @@
 # Version 0.3.1
 
+* Depend on `ram` rather than the unmaintained library `memory`.
+
 * Cabal file changes.
 
 

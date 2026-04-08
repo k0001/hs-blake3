@@ -1,6 +1,6 @@
 cabal-version: 3.0
 name: blake3
-version: 0.3.1
+version: 0.3.2
 license: Apache-2.0
 license-file: LICENSE
 extra-source-files: README.md CHANGELOG.md
@@ -45,7 +45,7 @@ common basic
   ghc-options: -Wall -Werror=incomplete-patterns
   build-depends:
     base == 4.*,
-    memory
+    ram
 
 library
   import: basic
@@ -113,6 +113,6 @@ test-suite test
   main-is: Main.hs
   build-depends:
     blake3,
-    memory,
+    ram,
     tasty,
     tasty-hunit,

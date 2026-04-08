@@ -1,2 +1,3 @@
+packages:
+  blake3/
 compiler: ghc
-packages: */*.cabal
