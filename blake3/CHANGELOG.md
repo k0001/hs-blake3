@@ -2,7 +2,8 @@
 
 * Depend on `ram` rather than the unmaintained library `memory`.
 
-* Cabal file changes.
+* `c_update` uses `safe` FFI call for hash inputs over 16 KiB by default.
+  Export `c_update__safe` and `c_update__unsafe`.
 
 
 # Version 0.3

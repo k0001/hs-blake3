@@ -40,6 +40,8 @@ module BLAKE3.IO
   , c_init_keyed
   , c_init_derive_key_raw
   , c_update
+  , c_update__safe
+  , c_update__unsafe
   , c_finalize
   , c_finalize_seek
   )
@@ -314,9 +316,40 @@ foreign import ccall unsafe
     -> IO ()
 
 -- | @void blake3_hasher_update(blake3_hasher *self, const void *input, size_t input_len)@
+--
+-- Uses 'c_update__unsafe' FFI call for @input_len@ of up to 16 KiB, and
+-- 'c_update__safe' otherwise.
+c_update
+    :: Ptr Hasher -- ^ Must have been previously initialized. See 'c_init',
+                  -- 'c_init_keyed', 'c_init_derive_key'.
+    -> Ptr Word8  -- ^ Data.
+    -> CSize      -- ^ Data length.
+    -> IO ()
+c_update ph pd dl =
+  let f = if dl <= 16384 then c_update__unsafe else c_update__safe
+  in  f ph pd dl
+{-# INLINE c_update #-}
+
+-- | @void blake3_hasher_update(blake3_hasher *self, const void *input, size_t input_len)@
+--
+-- Like 'c_update__safe', but marked @unsafe@ for FFI purposes.
+-- Suitable when @input_len@ is big. See 'c_update'.
 foreign import ccall unsafe
   "blake3.h blake3_hasher_update"
-  c_update
+  c_update__unsafe
+    :: Ptr Hasher -- ^ Must have been previously initializedi. See 'c_init',
+                  -- 'c_init_keyed', 'c_init_derive_key'.
+    -> Ptr Word8  -- ^ Data.
+    -> CSize      -- ^ Data length.
+    -> IO ()
+
+-- | @void blake3_hasher_update(blake3_hasher *self, const void *input, size_t input_len)@
+--
+-- Like 'c_update_safe', but marked @safe@ for FFI purposes.
+-- Suitable when @input_len@ is small. See 'c_update'.
+foreign import ccall safe
+  "blake3.h blake3_hasher_update"
+  c_update__safe
     :: Ptr Hasher -- ^ Must have been previously initializedi. See 'c_init',
                   -- 'c_init_keyed', 'c_init_derive_key'.
     -> Ptr Word8  -- ^ Data.
