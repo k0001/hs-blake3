@@ -1,3 +1,12 @@
+# Version 0.3.2
+
+* Build on non-x86 systems without needing to explicitly disable
+  x86-specific Cabal flags.
+* Enabled NEON support on aarch64 (arm64) by default. 
+  Unsetting the `neon-aarch64` Cabal flag disables this optimisation.
+* Support NEON on 32 bit arm when the `neon-arm` Cabal flag is set.
+
+
 # Version 0.3.1
 
 * Depend on `ram` rather than the unmaintained library `memory`.

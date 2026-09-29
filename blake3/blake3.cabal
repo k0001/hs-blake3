@@ -11,7 +11,7 @@ category: Cryptography
 build-type: Simple
 synopsis: BLAKE3 hashing algorithm
 description: Bindings to the official fast BLAKE3 implementations in assembly
-             and C, with support for AVX-512, AVX2, SSE 2, and SSE 4.1.
+             and C, with support for AVX-512, AVX2, SSE 2, SSE 4.1, and NEON.
 homepage: https://github.com/k0001/hs-blake3
 bug-reports: https://github.com/k0001/hs-blake3/issues
 tested-with: GHC == 9.2.5
@@ -21,23 +21,33 @@ extra-source-files:
   cbits/LICENSE
 
 flag avx512
-  description: Enable AVX-512 instructions
+  description: Enable AVX-512 instructions (only used for x86)
   default: True
   manual: True
 
 flag avx2
-  description: Enable AVX2 instructions
+  description: Enable AVX2 instructions (only used for x86)
   default: True
   manual: True
 
 flag sse41
-  description: Enable SSE 4.1 instructions
+  description: Enable SSE 4.1 instructions (only used for x86)
   default: True
   manual: True
 
 flag sse2
-  description: Enable SSE 2 instructions
+  description: Enable SSE 2 instructions (only used for x86)
   default: True
+  manual: True
+
+flag neon-aarch64
+  description: Enable NEON instructions (only used for aarch64)
+  default: True
+  manual: True
+
+flag neon-arm
+  description: Enable NEON instructions (only used for 32 bit arm)
+  default: False
   manual: True
 
 common basic
@@ -66,8 +76,10 @@ library
       asm-sources: cbits/blake3_avx512_x86-64_unix.S
     elif arch(x86_64) && os(windows)
       asm-sources: cbits/blake3_avx512_x86-64_windows_gnu.S
-    else
+    elif arch(x86_64) || arch(i386)
       c-sources: cbits/blake3_avx512.c
+    else
+      cc-options: -DBLAKE3_NO_AVX512
   else
     cc-options: -DBLAKE3_NO_AVX512
 
@@ -77,8 +89,10 @@ library
       asm-sources: cbits/blake3_avx2_x86-64_unix.S
     elif arch(x86_64) && os(windows)
       asm-sources: cbits/blake3_avx2_x86-64_windows_gnu.S
-    else
+    elif arch(x86_64) || arch(i386)
       c-sources: cbits/blake3_avx2.c
+    else
+      cc-options: -DBLAKE3_NO_AVX2
   else
     cc-options: -DBLAKE3_NO_AVX2
 
@@ -88,8 +102,10 @@ library
       asm-sources: cbits/blake3_sse41_x86-64_unix.S
     elif arch(x86_64) && os(windows)
       asm-sources: cbits/blake3_sse41_x86-64_windows_gnu.S
-    else
+    elif arch(x86_64) || arch(i386)
       c-sources: cbits/blake3_sse41.c
+    else
+      cc-options: -DBLAKE3_NO_SSE41
   else
     cc-options: -DBLAKE3_NO_SSE41
 
@@ -99,11 +115,21 @@ library
       asm-sources: cbits/blake3_sse2_x86-64_unix.S
     elif arch(x86_64) && os(windows)
       asm-sources: cbits/blake3_sse2_x86-64_windows_gnu.S
-    else
+    elif arch(x86_64) || arch(i386)
       c-sources: cbits/blake3_sse2.c
+    else
+      cc-options: -DBLAKE3_NO_SSE2
   else
     cc-options: -DBLAKE3_NO_SSE2
 
+  -- NEON support
+  if flag(neon-aarch64)
+    if arch(aarch64)
+      c-sources: cbits/blake3_neon.c
+  if flag(neon-arm)
+    if arch(arm)
+      c-sources: cbits/blake3_neon.c
+      cc-options: -DBLAKE3_USE_NEON=1 -mfpu=neon-vfpv4 -mfloat-abi=hard
 
 test-suite test
   import: basic
